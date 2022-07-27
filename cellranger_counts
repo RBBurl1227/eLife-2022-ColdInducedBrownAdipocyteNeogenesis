@@ -1,0 +1,5 @@
+#Cell Ranger v3.0.1
+#Example command
+
+cellranger count --id= iBAT_COLD_Rep1_Linneg --fastqs= /fastq/PATH --sample= iBAT_COLD_Rep1_Linneg --transcriptome= /refdata/PATH/refdata-cellranger-mm10-3.0.0 
+
