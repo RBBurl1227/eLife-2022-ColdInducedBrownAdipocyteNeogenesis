@@ -1,0 +1,23 @@
+#######################
+#######################SoupX
+#######################
+
+#SoupX v1.0.1 
+
+dataDirs1 = c("~/iBAT_COLD_Rep1_Linneg/outs")
+C57_COLD_Rep1_LN = load10X(dataDirs1)
+
+ 
+head(C57_COLD_Rep1_LN$soupProfile[order(C57_COLD_Rep1_LN$soupProfile$est, decreasing = TRUE), ], n = 30)
+
+png("C57_COLD_Rep1_LN_plotmarkerdist.png")
+plotMarkerDistribution(C57_COLD_Rep1_LN)
+dev.off()
+
+nonExpressedGeneList = list(adip = c("Fabp4", "Car3"))
+useToEst1 = estimateNonExpressingCells(C57_COLD_Rep1_LN, nonExpressedGeneList = nonExpressedGeneList, clusters=FALSE)
+C57_COLD_Rep1_LN = calculateContaminationFraction(C57_COLD_Rep1_LN, nonExpressedGeneList = nonExpressedGeneList, useToEst = useToEst1)
+C57_COLD_Rep1_LN_SoupX = adjustCounts(C57_COLD_Rep1_LN)
+DropletUtils:::write10xCounts("~/SoupX/PATH", C57_COLD_Rep1_LN_SoupX)
+
+
