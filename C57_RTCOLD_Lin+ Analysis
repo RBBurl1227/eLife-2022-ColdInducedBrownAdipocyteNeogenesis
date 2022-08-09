@@ -1,0 +1,323 @@
+#######################
+#######################Seurat
+#######################
+
+#######r/3.5.1
+#ggplot2_3.3.0   reticulate_1.15 dplyr_0.8.5	Seurat_3.1.5     
+
+
+
+############move to Seurat processing
+############
+###########Input to Seurat
+############
+O_RT.data <- Read10X(data.dir = "~/SoupX/PATH/C57_COLD_Rep1_LP_SoupX")
+O_RT <- CreateSeuratObject(counts = O_RT.data, min.cells=3, project = "C57_COLD_Rep1_LP_SoupX")
+O_RT$Replicate <- "Rep1"
+O_RT$Treatment <- "CONTROL"
+str(O_RT) #5285
+############################################################################
+O_6C.data <- Read10X(data.dir = "~/SoupX/PATH/C57_COLD_Rep1_LP_SoupX")
+O_6C <- CreateSeuratObject(counts = O_6C.data, min.cells=3, project = "C57_COLD_Rep1_LP_SoupX")
+O_6C$Replicate <- "Rep1"
+O_6C$Treatment <- "COLD"
+str(O_6C) #9379
+############################################################################
+R_RT.data <- Read10X(data.dir = "~/SoupX/PATH/C57_COLD_Rep1_LP_SoupX")
+R_RT <- CreateSeuratObject(counts = R_RT.data, min.cells=3, project = "C57_COLD_Rep1_LP_SoupX")
+R_RT$Replicate <- "Rep2"
+R_RT$Treatment <- "CONTROL"
+str(R_RT) #5305
+############################################################################
+R_6C.data <- Read10X(data.dir = "~/SoupX/PATH/C57_COLD_Rep1_LP_SoupX")
+R_6C <- CreateSeuratObject(counts = R_6C.data, min.cells=3, project = "C57_COLD_Rep1_LP_SoupX")
+R_6C$Replicate <- "Rep2"
+R_6C$Treatment <- "COLD"
+str(R_6C) #7602
+
+
+
+
+#Subset
+O_RT[["percent.mt"]] <- PercentageFeatureSet(O_RT, pattern = "^mt-")
+O_6C[["percent.mt"]] <- PercentageFeatureSet(O_6C, pattern = "^mt-")
+R_RT[["percent.mt"]] <- PercentageFeatureSet(R_RT, pattern = "^mt-")
+R_6C[["percent.mt"]] <- PercentageFeatureSet(R_6C, pattern = "^mt-")
+O_RT <- subset(O_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA < 4000)
+O_6C <- subset(O_6C, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA < 4000)
+R_RT <- subset(R_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA < 4000)
+R_6C <- subset(R_6C, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA < 4000)
+str(O_RT) #4629
+str(O_6C) #8604
+str(R_RT) #5047
+str(R_6C) #7064
+
+###################
+#Normalize
+###################
+O_RT <- NormalizeData(O_RT)
+O_6C <- NormalizeData(O_6C)
+R_RT <- NormalizeData(R_RT)
+R_6C <- NormalizeData(R_6C)
+
+###################
+#Merge
+###################
+#https://satijalab.org/seurat/v3.1/merge_vignette.html
+OGnorm <- merge(O_RT, y = O_6C, project = "OG_Linpos", merge.data = TRUE)
+RTnorm <- merge(R_RT, y = R_6C, project = "RT_Linpos", merge.data = TRUE)
+
+###################
+#Find Variable Features
+###################
+OGnorm <- FindVariableFeatures(OGnorm, selection.method = "vst", nfeatures = 2000)
+RTnorm <- FindVariableFeatures(RTnorm, selection.method = "vst", nfeatures = 2000)
+
+
+###################
+###################
+#Integrate
+#######################dim = 20, res 0.25
+LPanchors20 <- FindIntegrationAnchors(object.list = list(OGnorm, RTnorm), dims = 1:20) 
+Linpos_mi_d20 <- IntegrateData(anchorset = LPanchors20, dims = 1:20)
+###################
+#Scale
+###################
+allgenesmi20 <- rownames(Linpos_mi_d20)
+Linpos_mi_d20 <- ScaleData(Linpos_mi_d20, features = allgenesmi20)
+###################
+#PCs
+###################
+Linpos_mi_d20 <- RunPCA(Linpos_mi_d20, features = VariableFeatures(object = Linpos_mi_d20))
+Linpos_mi_d20 <- FindNeighbors(Linpos_mi_d20, dims = 1:20)
+###################
+#Visualize Data
+###################
+Linpos_mi_d20_r25 <- FindClusters(Linpos_mi_d20, resolution = 0.25)
+#TSNE
+Linpos_mi_d20_r25_t <- RunTSNE(Linpos_mi_d20_r25, dims = 1:20)
+png("Linpos_mi_d20_r25_tsne_1.png")
+DimPlot(Linpos_mi_d20_r25_t, reduction = "tsne")
+dev.off()
+
+
+#change names of clusters and reorder
+new.cluster.ids <- c("MAC1", "Blym", "DEND2", "Tlym", "DEND1", "RET", "MAC2", "MAC3", "MONO", "NKT", "NEUT", "DEND3", "VEC", "Lin-", "DEND4", "RBC")
+names(new.cluster.ids) <- levels(Linpos_mi_d20_r25_t)
+Linpos_mi_d20_r25_t <- RenameIdents(Linpos_mi_d20_r25_t, new.cluster.ids)
+levels(Linpos_mi_d20_r25_t)
+# [1] "MAC1"  "Blym"  "DEND2" "Tlym"  "DEND1" "RET"   "MAC2"  "MAC3"  "MONO" 
+#[10] "NKT"   "NEUT"  "DEND3" "VEC"   "Lin-"  "DEND4" "RBC"
+levels(x = Linpos_mi_d20_r25_t) <- c("MAC1", "MAC2", "MAC3", "MONO", "DEND1", "DEND2", "DEND3", "DEND4", "NKT", "Tlym", "Blym", "RET", "NEUT", "VEC", "Lin-", "RBC")
+levels(Linpos_mi_d20_r25_t)
+# [1] "MAC1"  "MAC2"  "MAC3"  "MONO"  "DEND1" "DEND2" "DEND3" "DEND4" "NKT"  
+#[10] "Tlym"  "Blym"  "RET"   "NEUT"  "VEC"   "Lin-"  "RBC"
+
+
+
+#change order of treatment for split tsne
+Linpos_mi_d20_r25_t$Treatment <- factor(Linpos_mi_d20_r25_t$Treatment, levels = c('CONTROL', 'COLD'))
+
+
+
+#labeled tsne - Figure 6A and B
+png("Linpos_mi_d20_r25_tsne_labels_1.png", height = 480, width = 720)
+DimPlot(Linpos_mi_d20_r25_t, reduction = "tsne", cols = c("#F8766D", "#00BE67", "#00C19A", "#00BFC4", "#7CAE00", "#CD9600", "#8494FF", "#FF61CC", "#00B8E7", "#ABA300", "#E68613", "#0CB702", "#00A9FF", "#C77CFF", "#ED68ED", "#FF68A1")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "Lin+ Libraries")
+dev.off()
+png("Linpos_mi_d20_r25_tsne_labels_split_1.png", height = 480, width = 1120)
+DimPlot(Linpos_mi_d20_r25_t, reduction = "tsne", split.by = "Treatment", cols = c("#F8766D", "#00BE67", "#00C19A", "#00BFC4", "#7CAE00", "#CD9600", "#8494FF", "#FF61CC", "#00B8E7", "#ABA300", "#E68613", "#0CB702", "#00A9FF", "#C77CFF", "#ED68ED", "#FF68A1")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+
+
+
+
+#dendritic cells only Figure 6 - figure supplement 1A
+Linpos_mi_d20_r25_t$clusters <- Idents(Linpos_mi_d20_r25_t)
+head(Linpos_mi_d20_r25_t@meta.data)
+#
+Dend1 <- subset(Linpos_mi_d20_r25_t, idents = c("DEND1", "DEND2", "DEND3", "DEND4"))
+Linpos_mi_d20_r25_t@meta.data$clusters %>% table()
+# MAC1  MAC2  MAC3  MONO DEND1 DEND2 DEND3 DEND4   NKT  Tlym  Blym   RET  NEUT 
+# 4134  1611  1443  1332  2018  3095   726   161  1045  2606  3722  1814   906 
+#  VEC  Lin-   RBC 
+#  458   241    32
+Dend1@meta.data$clusters %>% table()
+# MAC1  MAC2  MAC3  MONO DEND1 DEND2 DEND3 DEND4   NKT  Tlym  Blym   RET  NEUT 
+#    0     0     0     0  2018  3095   726   161     0     0     0     0     0 
+#  VEC  Lin-   RBC 
+#    0     0     0
+
+
+png("Dend1_tsne_1.png", height = 480, width = 480)
+DimPlot(Dend1, reduction = "tsne", cols = c("#7CAE00", "#CD9600", "#8494FF", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "DEND Cells")
+dev.off()
+
+DefaultAssay(Dend1) <- "RNA"
+Dend1 <- ScaleData(Dend1, verbose = FALSE)
+png("Dend1_tsne_feature_Birc5_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Birc5", reduction = "tsne") + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+png("Dend1_tsne_feature_Ppt1_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Ppt1", reduction = "tsne", cols = c("#d3d3d3", "#7CAE00")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Dend1_tsne_feature_Naaa_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Naaa", reduction = "tsne", cols = c("#d3d3d3", "#7CAE00")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Dend1_tsne_feature_Irf8_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Irf8", reduction = "tsne", cols = c("#d3d3d3", "#7CAE00")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Dend1_tsne_feature_Jaml_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Jaml", reduction = "tsne", cols = c("#d3d3d3", "#7CAE00")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+png("Dend1_tsne_feature_Clec4b1_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Clec4b1", reduction = "tsne", cols = c("#d3d3d3", "#CD9600")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Dend1_tsne_feature_Cd209a_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Cd209a", reduction = "tsne", cols = c("#d3d3d3", "#CD9600")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Dend1_tsne_feature_Tnip3_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Tnip3", reduction = "tsne", cols = c("#d3d3d3", "#CD9600")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Dend1_tsne_feature_Itgam_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Itgam", reduction = "tsne", cols = c("#d3d3d3", "#CD9600")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+png("Dend1_tsne_feature_Ccr7_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Ccr7", reduction = "tsne", cols = c("#d3d3d3", "#8494FF")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Dend1_tsne_feature_Tmem123_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Tmem123", reduction = "tsne", cols = c("#d3d3d3", "#8494FF")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+png("Dend1_tsne_feature_Tcf4_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Tcf4", reduction = "tsne", cols = c("#d3d3d3", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Dend1_tsne_feature_Cd7_1.png", height = 480, width = 480)
+FeaturePlot(Dend1, features = "Cd7", reduction = "tsne", cols = c("#d3d3d3", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+
+
+
+#Figure 6 - figure supplement 1B-C
+DefaultAssay(Linpos_mi_d20_r25_t) <- "RNA"
+Linpos_mi_d20_r25_t <- ScaleData(Linpos_mi_d20_r25_t, verbose = FALSE)
+png("Linpos_mi_d20_r25_tsne_feature_Gpnmb_1.png", height = 480, width = 480)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "Gpnmb", reduction = "tsne", cols = c("#d3d3d3", "#F8766D")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Linpos_mi_d20_r25_tsne_feature_Spp1_1.png", height = 480, width = 480)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "Spp1", reduction = "tsne", cols = c("#d3d3d3", "#F8766D")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Linpos_mi_d20_r25_tsne_feature_Trem2_1.png", height = 480, width = 480)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "Trem2", reduction = "tsne", cols = c("#d3d3d3", "#F8766D")) + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Linpos_mi_d20_r25_tsne_feature_Adgre1_1.png", height = 480, width = 480)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "Adgre1", reduction = "tsne") + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+
+
+
+#Figure 7A
+png("Linpos_mi_d20_r25_tsne_feature_Gpnmb_2.png", height = 480, width = 960)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "Gpnmb", reduction = "tsne", split.by = "Treatment") + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Linpos_mi_d20_r25_tsne_feature_Gpnmb_3.png", height = 480, width = 480)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "Gpnmb", reduction = "tsne") + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+png("Linpos_mi_d20_r25_tsne_feature_Mki67_1.png", height = 480, width = 960)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "Mki67", reduction = "tsne", split.by = "Treatment") + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Linpos_mi_d20_r25_tsne_feature_Mki67_2.png", height = 480, width = 480)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "Mki67", reduction = "tsne") + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+png("Linpos_mi_d20_r25_tsne_feature_H2Ab1_1.png", height = 480, width = 960)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "H2-Ab1", reduction = "tsne", split.by = "Treatment") + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+png("Linpos_mi_d20_r25_tsne_feature_H2Ab1_2.png", height = 480, width = 480)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "H2-Ab1", reduction = "tsne") + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+
+
+####Figure 9B
+png("Linpos_mi_d20_r25_tsne_feature_Adam12_1.png", height = 480, width = 480)
+FeaturePlot(Linpos_mi_d20_r25_t, features = "Adam12", reduction = "tsne") + theme(text = element_text(size = 25, face = "bold"))
+dev.off()
+
+
+
+
+##################Figure 5 - figure supplement 1A
+
+####color Adrb1+ cells
+Linpos_mi_d20_r25_t_Adrb1 <- Linpos_mi_d20_r25_t
+poscells <- WhichCells(Linpos_mi_d20_r25_t_Adrb1, expression = Adrb1 > 0)
+Linpos_mi_d20_r25_t_Adrb1$Adrb1_exp<- ifelse(colnames(Linpos_mi_d20_r25_t_Adrb1) %in% poscells, "Pos", "Neg")
+Linpos_mi_d20_r25_t_Adrb1@meta.data$Adrb1_exp %>% table()
+#  Neg   Pos 
+#25202   142
+Idents(Linpos_mi_d20_r25_t_Adrb1) <- "Adrb1_exp"
+png("Linpos_mi_d20_r25_tsne_feature_Adrb1_1.png", height = 480, width = 480)
+DimPlot(Linpos_mi_d20_r25_t_Adrb1, reduction = "tsne", cols = c("#d3d3d3", "#e60000"), pt.size = 1) + theme(text = element_text(size = 25, face = "bold")) + NoLegend()
+dev.off()
+
+
+####color Adrb3+ cells
+Linpos_mi_d20_r25_t_Adrb3 <- Linpos_mi_d20_r25_t
+poscells2 <- WhichCells(Linpos_mi_d20_r25_t_Adrb3, expression = Adrb3 > 0)
+Linpos_mi_d20_r25_t_Adrb3$Adrb3_exp<- ifelse(colnames(Linpos_mi_d20_r25_t_Adrb3) %in% poscells2, "Pos", "Neg")
+Linpos_mi_d20_r25_t_Adrb3@meta.data$Adrb3_exp %>% table()
+#  Neg   Pos 
+#25331    13
+Idents(Linpos_mi_d20_r25_t_Adrb3) <- "Adrb3_exp"
+png("Linpos_mi_d20_r25_tsne_feature_Adrb3_2.png", height = 480, width = 480)
+DimPlot(Linpos_mi_d20_r25_t_Adrb3, reduction = "tsne", cols = c("#d3d3d3", "#0000ff"), pt.size = 1) + theme(text = element_text(size = 25, face = "bold")) + NoLegend()
+dev.off()
+
+
+
+
+
+#cluster markers
+Linpos_mi_d20_r25_t_mono_MAC1markers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "MAC1", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_MAC2markers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "MAC2", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_MAC3markers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "MAC3", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_MONOmarkers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "MONO", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_DEND1markers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "DEND1", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_DEND2markers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "DEND2", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_DEND3markers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "DEND3", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_DEND4markers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "DEND4", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_NKTmarkers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "NKT", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_Tlymmarkers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "Tlym", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_Blymmarkers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "Blym", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_RETmarkers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "RET", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_NEUTmarkers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "NEUT", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_VECmarkers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "VEC", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_Linnegmarkers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "Lin-", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linpos_mi_d20_r25_t_mono_RBCmarkers <- FindMarkers(Linpos_mi_d20_r25_t_mono, ident.1 = "RBC", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+write.csv(Linpos_mi_d20_r25_t_mono_MAC1markers, "Linpos_mi_d20_r25_t_mono_MAC1markers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_MAC2markers, "Linpos_mi_d20_r25_t_mono_MAC2markers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_MAC3markers, "Linpos_mi_d20_r25_t_mono_MAC3markers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_MONOmarkers, "Linpos_mi_d20_r25_t_mono_MONOmarkers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_DEND1markers, "Linpos_mi_d20_r25_t_mono_DEND1markers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_DEND2markers, "Linpos_mi_d20_r25_t_mono_DEND2markers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_DEND3markers, "Linpos_mi_d20_r25_t_mono_DEND3markers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_DEND4markers, "Linpos_mi_d20_r25_t_mono_DEND4markers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_NKTmarkers, "Linpos_mi_d20_r25_t_mono_NKTmarkers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_Tlymmarkers, "Linpos_mi_d20_r25_t_mono_Tlymmarkers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_Blymmarkers, "Linpos_mi_d20_r25_t_mono_Blymmarkers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_RETmarkers, "Linpos_mi_d20_r25_t_mono_RETmarkers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_NEUTmarkers, "Linpos_mi_d20_r25_t_mono_NEUTmarkers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_VECmarkers, "Linpos_mi_d20_r25_t_mono_VECmarkers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_Linnegmarkers, "Linpos_mi_d20_r25_t_mono_Linnegmarkers.csv")
+write.csv(Linpos_mi_d20_r25_t_mono_RBCmarkers, "Linpos_mi_d20_r25_t_mono_RBCmarkers.csv")
+
+
+
+
