@@ -1,0 +1,799 @@
+#######################
+#######################Seurat
+#######################
+
+#######r/3.5.1
+#ggplot2_3.3.0   reticulate_1.15 dplyr_0.8.5	Seurat_3.1.5     
+
+
+############Seurat processing
+############
+O_RT.data <- Read10X(data.dir = "~/SoupX/PATH/C57_RT_Rep1_LN_SoupX")
+O_RT <- CreateSeuratObject(counts = O_RT.data, min.cells=3, project = "C57_RT_Rep1_LN_SoupX")
+O_RT$Replicate <- "Rep1"
+O_RT$Treatment <- "CONTROL"
+str(O_RT) #5886
+############################################################################
+O_6C.data <- Read10X(data.dir = "~/SoupX/PATH/C57_COLD_Rep1_LN_SoupX")
+O_6C <- CreateSeuratObject(counts = O_6C.data, min.cells=3, project = "C57_COLD_Rep1_LN_SoupX")
+O_6C$Replicate <- "Rep1"
+O_6C$Treatment <- "COLD"
+str(O_6C) #10242
+############################################################################
+R_RT.data <- Read10X(data.dir = "~/SoupX/PATH/C57_RT_Rep2_LN_SoupX")
+R_RT <- CreateSeuratObject(counts = R_RT.data, min.cells=3, project = "C57_RT_Rep2_LN_SoupX")
+R_RT$Replicate <- "Rep2"
+R_RT$Treatment <- "CONTROL"
+str(R_RT) #22072
+############################################################################
+R_6C.data <- Read10X(data.dir = "~/SoupX/PATH/C57_COLD_Rep2_LN_SoupX")
+R_6C <- CreateSeuratObject(counts = R_6C.data, min.cells=3, project = "C57_COLD_Rep2_LN_SoupX")
+R_6C$Replicate <- "Rep2"
+R_6C$Treatment <- "COLD"
+str(R_6C) #7414
+
+
+###################
+#Subset
+###################
+O_RT[["percent.mt"]] <- PercentageFeatureSet(O_RT, pattern = "^mt-")
+O_6C[["percent.mt"]] <- PercentageFeatureSet(O_6C, pattern = "^mt-")
+R_RT[["percent.mt"]] <- PercentageFeatureSet(R_RT, pattern = "^mt-")
+R_6C[["percent.mt"]] <- PercentageFeatureSet(R_6C, pattern = "^mt-")
+O_RT <- subset(O_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+O_6C <- subset(O_6C, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+R_RT <- subset(R_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+R_6C <- subset(R_6C, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+str(O_RT) #5603
+str(O_6C) #9855
+str(R_RT) #6171
+str(R_6C) #7062
+
+
+O_RT <- NormalizeData(O_RT)
+O_6C <- NormalizeData(O_6C)
+R_RT <- NormalizeData(R_RT)
+R_6C <- NormalizeData(R_6C)
+
+
+###################
+#Merge
+###################
+#https://satijalab.org/seurat/v3.1/merge_vignette.html
+OGnorm <- merge(O_RT, y = O_6C, project = "OG_Linneg", merge.data = TRUE)
+RTnorm <- merge(R_RT, y = R_6C, project = "RT_Linneg", merge.data = TRUE)
+
+
+###################
+#Find Variable Features
+###################
+OGnorm <- FindVariableFeatures(OGnorm, selection.method = "vst", nfeatures = 2000)
+RTnorm <- FindVariableFeatures(RTnorm, selection.method = "vst", nfeatures = 2000)
+
+
+###################
+###################
+#Integrate
+#######################dim = 12, res 0.1
+LNanchors12 <- FindIntegrationAnchors(object.list = list(OGnorm, RTnorm), dims = 1:12) 
+Linneg_mi_d12 <- IntegrateData(anchorset = LNanchors12, dims = 1:12)
+###################
+#Scale
+###################
+allgenesmi12 <- rownames(Linneg_mi_d12)
+Linneg_mi_d12 <- ScaleData(Linneg_mi_d12, features = allgenesmi12)
+###################
+#PCs
+###################
+Linneg_mi_d12 <- RunPCA(Linneg_mi_d12, features = VariableFeatures(object = Linneg_mi_d12))
+Linneg_mi_d12 <- FindNeighbors(Linneg_mi_d12, dims = 1:12)
+###################
+#Visualize Data
+###################
+Linneg_mi_d12_r1 <- FindClusters(Linneg_mi_d12, resolution = 0.1)
+#TSNE
+Linneg_mi_d12_r1_t <- RunTSNE(Linneg_mi_d12_r1, dims = 1:12)
+png("Linneg_mi_d12_r1_tsne_1.png")
+DimPlot(Linneg_mi_d12_r1_t, reduction = "tsne")
+dev.off()
+png("Linneg_mi_d12_r1_tsne_2.png")
+DimPlot(Linneg_mi_d12_r1_t, reduction = "tsne", split.by = "Treatment")
+dev.off()
+
+
+#change order of treatment for split.by
+Linneg_mi_d12_r1_t$Treatment <- factor(Linneg_mi_d12_r1_t$Treatment, levels = c('CONTROL', 'COLD'))
+
+
+#Set new cluster ids
+new.cluster.ids <- c("ASC               1", "ASC               2", "ASC1-3", "VEC", "Prolif/Diff", "VSMC", "Immune", "Schwann")
+names(new.cluster.ids) <- levels(Linneg_mi_d12_r1_t)
+Linneg_mi_d12_r1_t <- RenameIdents(Linneg_mi_d12_r1_t, new.cluster.ids)
+levels(Linneg_mi_d12_r1_t)
+#[1] "ASC               1" "ASC               2" "ASC1-3"             
+#[4] "VEC"                 "Prolif/Diff"         "VSMC"               
+#[7] "Immune"              "Schwann"
+Linneg_mi_d12_r1_t[["seurat_cident"]] <- Idents(object = Linneg_mi_d12_r1_t)
+
+
+#labeled tsne - Figure 2 A-B
+png("Linneg_mi_d12_r1_tsne_labels_1.png", height = 480, width = 720)
+DimPlot(Linneg_mi_d12_r1_t, reduction = "tsne", cols = c("#B79F00", "#F8766D", "#00BA38", "#619CFF", "#00BFC4", "#ED962C", "#C77CFF", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "Lin- Libraries")
+dev.off()
+png("Linneg_mi_d12_r1_tsne_labels_split_1.png", height = 480, width = 960)
+DimPlot(Linneg_mi_d12_r1_t, reduction = "tsne", split.by = "Treatment", cols = c("#B79F00", "#F8766D", "#00BA38", "#619CFF", "#00BFC4", "#ED962C", "#C77CFF", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold")) + NoLegend()
+dev.off()
+
+
+
+###Cluster markers
+Linneg_mi_d12_r1_t_ASC_1markers <- FindMarkers(Linneg_mi_d12_r1_t, ident.1 = "ASC               1", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linneg_mi_d12_r1_t_ASC_2markers <- FindMarkers(Linneg_mi_d12_r1_t, ident.1 = "ASC               2", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linneg_mi_d12_r1_t_ASC_13markers <- FindMarkers(Linneg_mi_d12_r1_t, ident.1 = "ASC1-3", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linneg_mi_d12_r1_t_VECmarkers <- FindMarkers(Linneg_mi_d12_r1_t, ident.1 = "VEC", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linneg_mi_d12_r1_t_PDmarkers <- FindMarkers(Linneg_mi_d12_r1_t, ident.1 = "Prolif/Diff", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linneg_mi_d12_r1_t_VSMCmarkers <- FindMarkers(Linneg_mi_d12_r1_t, ident.1 = "VSMC", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linneg_mi_d12_r1_t_Immunemarkers <- FindMarkers(Linneg_mi_d12_r1_t, ident.1 = "Immune", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+Linneg_mi_d12_r1_t_Schwannmarkers <- FindMarkers(Linneg_mi_d12_r1_t, ident.1 = "Schwann", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+write.csv(Linneg_mi_d12_r1_t_ASC_1markers, "Linneg_mi_d12_r1_t_ASC_1markers.csv")
+write.csv(Linneg_mi_d12_r1_t_ASC_2markers, "Linneg_mi_d12_r1_t_ASC_2markers.csv")
+write.csv(Linneg_mi_d12_r1_t_ASC_3markers, "Linneg_mi_d12_r1_t_ASC_3markers.csv")
+write.csv(Linneg_mi_d12_r1_t_VECmarkers, "Linneg_mi_d12_r1_t_VECmarkers.csv")
+write.csv(Linneg_mi_d12_r1_t_PDmarkers, "Linneg_mi_d12_r1_t_PDmarkers.csv")
+write.csv(Linneg_mi_d12_r1_t_VSMCmarkers, "Linneg_mi_d12_r1_t_VSMCmarkers.csv")
+write.csv(Linneg_mi_d12_r1_t_Immunemarkers, "Linneg_mi_d12_r1_t_Immunemarkers.csv")
+write.csv(Linneg_mi_d12_r1_t_Schwannmarkers, "Linneg_mi_d12_r1_t_Schwannmarkers.csv")
+
+
+
+
+
+######################Figure 5 - figure supplement 1A
+
+
+DefaultAssay(Linneg_mi_d12_r1_t) <- "RNA"
+Linneg_mi_d12_r1_t <- ScaleData(Linneg_mi_d12_r1_t, verbose = FALSE)
+
+
+####color Adrb1+ cells
+Linneg_mi_d12_r1_t_Adrb1 <- Linneg_mi_d12_r1_t
+poscells <- WhichCells(Linneg_mi_d12_r1_t_Adrb1, expression = Adrb1 > 0)
+Linneg_mi_d12_r1_t_Adrb1$Adrb1_exp<- ifelse(colnames(Linneg_mi_d12_r1_t_Adrb1) %in% poscells, "Pos", "Neg")
+Linneg_mi_d12_r1_t_Adrb1@meta.data$Adrb1_exp %>% table()
+#  Neg   Pos 
+#27782   909
+Idents(Linneg_mi_d12_r1_t_Adrb1) <- "Adrb1_exp"
+png("Linneg_mi_d12_r1_tsne_feature_Adrb1_1.png", height = 480, width = 480)
+DimPlot(Linneg_mi_d12_r1_t_Adrb1, reduction = "tsne", cols = c("#d3d3d3", "#e60000"), pt.size = 1) + theme(text = element_text(size = 25, face = "bold")) + NoLegend()
+dev.off()
+
+
+####color Adrb3+ cells
+Linneg_mi_d12_r1_t_Adrb3 <- Linneg_mi_d12_r1_t
+poscells2 <- WhichCells(Linneg_mi_d12_r1_t_Adrb3, expression = Adrb3 > 0)
+Linneg_mi_d12_r1_t_Adrb3$Adrb3_exp<- ifelse(colnames(Linneg_mi_d12_r1_t_Adrb3) %in% poscells2, "Pos", "Neg")
+Linneg_mi_d12_r1_t_Adrb3@meta.data$Adrb3_exp %>% table()
+#  Neg   Pos 
+#27800   891
+Idents(Linneg_mi_d12_r1_t_Adrb3) <- "Adrb3_exp"
+png("Linneg_mi_d12_r1_tsne_feature_Adrb3_1.png", height = 480, width = 480)
+DimPlot(Linneg_mi_d12_r1_t_Adrb3, reduction = "tsne", cols = c("#d3d3d3", "#0000ff"), pt.size = 1) + theme(text = element_text(size = 25, face = "bold")) + NoLegend()
+dev.off()
+
+
+
+
+
+
+######################Figure 2 - figure supplement 2B 
+#make tsne plots with increasing resolution
+
+#######################reduce resolution to 0.01
+
+Linneg_mi_d12_r01 <- FindClusters(Linneg_mi_d12, resolution = 0.01)
+#TSNE
+Linneg_mi_d12_r01_t <- RunTSNE(Linneg_mi_d12_r01, dims = 1:12)
+png("Linneg_mi_d12_r01_tsne_1.png")
+DimPlot(Linneg_mi_d12_r01_t, reduction = "tsne")
+dev.off()
+##########set new cluster ids
+new.cluster.ids2 <- c("ASC", "VEC", "VSMC", "Immune", "Schwann")
+names(new.cluster.ids2) <- levels(Linneg_mi_d12_r01_t)
+Linneg_mi_d12_r01_t <- RenameIdents(Linneg_mi_d12_r01_t, new.cluster.ids2)
+levels(Linneg_mi_d12_r01_t)
+#[1] "ASC"     "VEC"     "VSMC"    "Immune"  "Schwann"
+png("Linneg_mi_d12_r01_tsne_labels_1.png", height = 480, width = 720)
+DimPlot(Linneg_mi_d12_r01_t, reduction = "tsne", cols = c("#F8766D", "#00BFC4", "#ED962C", "#C77CFF", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "Resolution = 0.01")
+dev.off()
+
+#######################reduce resolution to 0.04
+
+Linneg_mi_d12_r04 <- FindClusters(Linneg_mi_d12, resolution = 0.04)
+#TSNE
+Linneg_mi_d12_r04_t <- RunTSNE(Linneg_mi_d12_r04, dims = 1:12)
+png("Linneg_mi_d12_r04_tsne_1.png")
+DimPlot(Linneg_mi_d12_r04_t, reduction = "tsne")
+dev.off()
+new.cluster.ids3 <- c("ASC", "VEC", "Prolif/Diff", "VSMC", "Immune", "Schwann")
+names(new.cluster.ids3) <- levels(Linneg_mi_d12_r04_t)
+Linneg_mi_d12_r04_t <- RenameIdents(Linneg_mi_d12_r04_t, new.cluster.ids3)
+levels(Linneg_mi_d12_r04_t)
+#[1] "ASC"         "VEC"         "Prolif/Diff" "VSMC"        "Immune"     
+#[6] "Schwann"
+levels(x = Linneg_mi_d12_r04_t) <- c("ASC", "Prolif/Diff", "VEC", "VSMC", "Immune", "Schwann")
+levels(Linneg_mi_d12_r04_t)
+#[1] "ASC"         "Prolif/Diff" "VEC"         "VSMC"        "Immune"     
+#[6] "Schwann" 
+png("Linneg_mi_d12_r04_tsne_labels_1.png", height = 480, width = 720)
+DimPlot(Linneg_mi_d12_r04_t, reduction = "tsne", cols = c("#F8766D", "#619CFF", "#00BFC4", "#ED962C", "#C77CFF", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "Resolution = 0.04")
+dev.off()
+
+#######################reduce resolution to 0.07
+
+Linneg_mi_d12_r07 <- FindClusters(Linneg_mi_d12, resolution = 0.07)
+#TSNE
+Linneg_mi_d12_r07_t <- RunTSNE(Linneg_mi_d12_r07, dims = 1:12)
+png("Linneg_mi_d12_r07_tsne_1.png")
+DimPlot(Linneg_mi_d12_r07_t, reduction = "tsne")
+dev.off()
+new.cluster.ids4 <- c("ASC               1", "ASC               2", "VEC", "Prolif/Diff", "VSMC", "Immune", "Schwann")
+names(new.cluster.ids4) <- levels(Linneg_mi_d12_r07_t)
+Linneg_mi_d12_r07_t <- RenameIdents(Linneg_mi_d12_r07_t, new.cluster.ids4)
+levels(Linneg_mi_d12_r07_t)
+#[1] "ASC               1" "ASC               2" "VEC"                
+#[4] "Prolif/Diff"         "VSMC"                "Immune"             
+#[7] "Schwann"  
+levels(x = Linneg_mi_d12_r07_t) <- c("ASC               1", "ASC               2", "Prolif/Diff", "VEC", "VSMC", "Immune", "Schwann")
+levels(Linneg_mi_d12_r07_t)
+#[1] "ASC               1" "ASC               2" "Prolif/Diff"        
+#[4] "VEC"                 "VSMC"                "Immune"             
+#[7] "Schwann"
+png("Linneg_mi_d12_r07_tsne_labels_1.png", height = 480, width = 720)
+DimPlot(Linneg_mi_d12_r07_t, reduction = "tsne", cols = c("#F8766D", "#00BA38", "#619CFF", "#00BFC4", "#ED962C", "#C77CFF", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "Resolution = 0.07")
+dev.off()
+
+
+
+png("Linneg_mi_d12_r1_tsne_labels_2.png", height = 480, width = 720)
+DimPlot(Linneg_mi_d12_r1_t, reduction = "tsne", cols = c("#B79F00", "#F8766D", "#00BA38", "#619CFF", "#00BFC4", "#ED962C", "#C77CFF", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "Resolution = 0.1")
+dev.off()
+
+
+
+
+
+
+
+#feature plots from Figure 2 - figure supplement 2A
+DefaultAssay(Linneg_mi_d12_r1_t) <- "RNA"
+Linneg_mi_d12_r1_t <- ScaleData(Linneg_mi_d12_r1_t, verbose = FALSE)
+png("Linneg_mi_d12_r1_t_features_Pdgfra_1.png", height = 480, width = 480)
+FeaturePlot(Linneg_mi_d12_r1_t, features = "Pdgfra", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) + labs(title = "ASC Marker - Pdgfra")
+dev.off()
+png("Linneg_mi_d12_r1_t_features_Birc5_1.png", height = 480, width = 480)
+FeaturePlot(Linneg_mi_d12_r1_t, features = "Birc5", reduction = "tsne", cols = c("#d3d3d3", "#619CFF")) + theme(text = element_text(size = 20, face = "bold")) + labs(title = "Proliferation Marker - Birc5")
+dev.off()
+png("Linneg_mi_d12_r1_t_features_Car3_1.png", height = 480, width = 480)
+FeaturePlot(Linneg_mi_d12_r1_t, features = "Car3", reduction = "tsne", cols = c("#d3d3d3", "#619CFF")) + theme(text = element_text(size = 20, face = "bold")) + labs(title = "Differentiation Marker - Car3")
+dev.off()
+png("Linneg_mi_d12_r1_t_features_Cd34_1.png", height = 480, width = 480)
+FeaturePlot(Linneg_mi_d12_r1_t, features = "Cd34", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("Linneg_mi_d12_r1_t_features_Ly6a_1.png", height = 480, width = 480)
+FeaturePlot(Linneg_mi_d12_r1_t, features = "Ly6a", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("Linneg_mi_d12_r1_t_features_Pdgfrb_1.png", height = 480, width = 480)
+FeaturePlot(Linneg_mi_d12_r1_t, features = "Pdgfrb", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+
+
+
+#feature plots - Figure 9B
+png("Linneg_mi_d12_r1_t_features_Adam12_1.png", height = 480, width = 480)
+FeaturePlot(Linneg_mi_d12_r1_t, features = "Adam12", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+
+
+
+
+
+#create metadata file to subset to just ASCs
+Linneg_mi_d12_r1_t_ASCs <- subset(Linneg_mi_d12_r1_t, idents = c("ASC               1", "ASC               2", "ASC1-3", "Prolif/Diff")) 
+Linneg_mi_d12_r1_t@meta.data$seurat_cident %>% table()
+#ASC               1 ASC               2              ASC1-3                 VEC 
+#               6665                5313                4801                4488 
+#        Prolif/Diff                VSMC              Immune             Schwann 
+#               2880                2561                1504                 479
+Linneg_mi_d12_r1_t_ASCs@meta.data$seurat_cident %>% table()
+#ASC               1 ASC               2              ASC1-3                 VEC 
+#               6665                5313                4801                   0 
+#        Prolif/Diff                VSMC              Immune             Schwann 
+#               2880                   0                   0                   0
+write.csv(Linneg_mi_d12_r1_t_ASCs@meta.data, "Linneg_mi_d12_r1_t_ASCs_md.csv")
+
+
+
+
+
+
+##################################
+##################################
+##################################subset raw data to just ASCs; reanalyze
+##################################
+##################################
+ad12 <- read.csv("Linneg_mi_d12_r1_t_ASCs_md.csv", header = TRUE)
+str(ad12) #19659
+ad12_Rep1 <- ad12[ad12$Replicate == 'Rep1',]
+ad12_Rep2 <- ad12[ad12$Replicate == 'Rep2',]
+str(ad12_Rep1) #10766
+str(ad12_Rep2) #8893
+
+ad12_Rep1CON <- ad12_Rep1[ad12_Rep1$Treatment == 'CONTROL',]
+str(ad12_Rep1CON) #3586
+head(ad12_Rep1CON) #_1_1
+ad12_Rep1COLD <- ad12_Rep1[ad12_Rep1$Treatment == 'COLD',]
+str(ad12_Rep1COLD) #7180
+head(ad12_Rep1COLD) #_2_1
+
+ad12_Rep2CON <- ad12_Rep2[ad12_Rep2$Treatment == 'CONTROL',]
+str(ad12_Rep2CON) #3736
+head(ad12_Rep2CON) #_1_2
+ad12_Rep2COLD <- ad12_Rep2[ad12_Rep2$Treatment == 'COLD',]
+str(ad12_Rep2COLD) #5157
+head(ad12_Rep2COLD) #_2_2
+
+ad12_Rep1CON$X <- gsub('_1_1', '', ad12_Rep1CON$X)
+ad12_Rep1COLD$X <- gsub('_2_1', '', ad12_Rep1COLD$X)
+ad12_Rep2CON$X <- gsub('_1_2', '', ad12_Rep2CON$X)
+ad12_Rep2COLD$X <- gsub('_2_2', '', ad12_Rep2COLD$X)
+head(ad12_Rep1CON)
+head(ad12_Rep1COLD)
+head(ad12_Rep2CON)
+head(ad12_Rep2COLD)
+
+######################
+#subset to just ASCs
+######################
+
+O_RT_ad12_ASC <- subset(O_RT, cells = ad12_Rep1CON$X)
+O_6C_ad12_ASC <- subset(O_6C, cells = ad12_Rep1COLD$X)
+R_RT_ad12_ASC <- subset(R_RT, cells = ad12_Rep2CON$X)
+R_6C_ad12_ASC <- subset(R_6C, cells = ad12_Rep2COLD$X)
+
+str(O_RT_ad12_ASC) #3586
+str(O_6C_ad12_ASC) #7180
+str(R_RT_ad12_ASC) #3736
+str(R_6C_ad12_ASC) #5157
+
+
+###################
+#Normalize
+###################
+O_RT_ad12_ASC <- NormalizeData(O_RT_ad12_ASC)
+O_6C_ad12_ASC <- NormalizeData(O_6C_ad12_ASC)
+R_RT_ad12_ASC <- NormalizeData(R_RT_ad12_ASC)
+R_6C_ad12_ASC <- NormalizeData(R_6C_ad12_ASC)
+
+
+###################
+#Merge
+###################
+#https://satijalab.org/seurat/v3.1/merge_vignette.html
+OGnorm_ad12_ASC <- merge(O_RT_ad12_ASC, y = O_6C_ad12_ASC, project = "OG_Linneg", merge.data = TRUE)
+RTnorm_ad12_ASC <- merge(R_RT_ad12_ASC, y = R_6C_ad12_ASC, project = "RT_Linneg", merge.data = TRUE)
+
+###################
+#Find Variable Features
+###################
+OGnorm_ad12_ASC <- FindVariableFeatures(OGnorm_ad12_ASC, selection.method = "vst", nfeatures = 2000)
+###
+RTnorm_ad12_ASC <- FindVariableFeatures(RTnorm_ad12_ASC, selection.method = "vst", nfeatures = 2000)
+
+
+#######################dim = 8, res 0.2
+###################
+#Integrate
+###################
+anchors8 <- FindIntegrationAnchors(object.list = list(OGnorm_ad12_ASC, RTnorm_ad12_ASC), dims = 1:8) 
+ad12_d8 <- IntegrateData(anchorset = anchors8, dims = 1:8)
+###################
+#Scale
+###################
+ad12_genes8 <- rownames(ad12_d8)
+ad12_d8 <- ScaleData(ad12_d8, features = ad12_genes8)
+###################
+#PCs
+###################
+ad12_d8 <- RunPCA(ad12_d8, features = VariableFeatures(object = ad12_d8))
+ad12_d8 <- FindNeighbors(ad12_d8, dims = 1:8)
+###################
+#Visualize Data
+###################
+ad12_d8_r2 <- FindClusters(ad12_d8, resolution = 0.2)
+#TSNE
+ad12_d8_r2_t <- RunTSNE(ad12_d8_r2, dims = 1:8)
+png("ad12_d8_r2_tsne_1.png")
+DimPlot(ad12_d8_r2_t, reduction = "tsne")
+dev.off()
+
+
+###################
+#Set new cluster ids
+###################
+new.cluster.ids <- c("ASC1_cold-activated", "ASC2", "ASC1_quiescent", "Prolif/Diff", "ASC3", "Prolif/Non-diff")
+names(new.cluster.ids) <- levels(ad12_d8_r2_t)
+ad12_d8_r2_t <- RenameIdents(ad12_d8_r2_t, new.cluster.ids)
+levels(ad12_d8_r2_t)
+#[1] "ASC1_cold-activated" "ASC2"                "ASC1_quiescent"     
+#[4] "Prolif/Diff"         "ASC3"                "Prolif/Non-diff"
+levels(x = ad12_d8_r2_t) <- c("ASC1_quiescent", "ASC1_cold-activated", "ASC2", "ASC3", "Prolif/Non-diff", "Prolif/Diff")
+levels(ad12_d8_r2_t)
+#[1] "ASC1_quiescent"      "ASC1_cold-activated" "ASC2"               
+#[4] "ASC3"                "Prolif/Non-diff"     "Prolif/Diff"
+
+###################
+#change order of treatment for split tsne
+###################
+ad12_d8_r2_t$Treatment <- factor(ad12_d8_r2_t$Treatment, levels = c('CONTROL', 'COLD'))
+
+
+
+
+###################
+#split labeled tsne - Figure 2C
+###################
+png("ad12_d8_r2_tsne_split_labels_1.png", height = 480, width = 1100)
+DimPlot(ad12_d8_r2_t, reduction = "tsne", split.by = "Treatment", pt.size = 0.5, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "ASC Cells")
+dev.off()
+
+
+
+
+
+ad12_d8_r2_t_ASC1qmarkers <- FindMarkers(ad12_d8_r2_t, ident.1 = "ASC1_quiescent", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+ad12_d8_r2_t_ASC1camarkers <- FindMarkers(ad12_d8_r2_t, ident.1 = "ASC1_cold-activated", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+ad12_d8_r2_t_ASC2markers <- FindMarkers(ad12_d8_r2_t, ident.1 = "ASC2", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+ad12_d8_r2_t_ASC3markers <- FindMarkers(ad12_d8_r2_t, ident.1 = "ASC3", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+ad12_d8_r2_t_PNDmarkers <- FindMarkers(ad12_d8_r2_t, ident.1 = "Prolif/Non-diff", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+ad12_d8_r2_t_PDmarkers <- FindMarkers(ad12_d8_r2_t, ident.1 = "Prolif/Diff", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+write.csv(ad12_d8_r2_t_ASC1qmarkers, "ad12_d8_r2_t_ASC1qmarkers.csv")
+write.csv(ad12_d8_r2_t_ASC1camarkers, "ad12_d8_r2_t_ASC1camarkers.csv")
+write.csv(ad12_d8_r2_t_ASC2markers, "ad12_d8_r2_t_ASC2markers.csv")
+write.csv(ad12_d8_r2_t_ASC3markers, "ad12_d8_r2_t_ASC3markers.csv")
+write.csv(ad12_d8_r2_t_PNDmarkers, "ad12_d8_r2_t_PNDmarkers.csv")
+write.csv(ad12_d8_r2_t_PDmarkers, "ad12_d8_r2_t_PDmarkers.csv")
+
+
+
+
+
+
+###################
+#violin plots Figure 2D
+###################
+#Set new cluster ids to make them shorter
+ASCs_vln <- ad12_d8_r2_t
+levels(ASCs_vln)
+#[1] "ASC1_quiescent"      "ASC1_cold-activated" "ASC2"               
+#[4] "ASC3"                "Prolif/Non-diff"     "Prolif/Diff"
+new.cluster.ids1 <- c("ASC1_quies", "ASC1_cold", "ASC2", "ASC3", "Prolif/Non-diff", "Prolif/Diff")
+names(new.cluster.ids1) <- levels(ASCs_vln)
+ASCs_vln <- RenameIdents(ASCs_vln, new.cluster.ids1)
+levels(ASCs_vln)
+#[1] "ASC1_quies"      "ASC1_cold"       "ASC2"            "ASC3"           
+#[5] "Prolif/Non-diff" "Prolif/Diff"
+
+#plots
+DefaultAssay(ASCs_vln) <- "RNA"
+ASCs_vln <- ScaleData(ASCs_vln, verbose = FALSE)
+png("ad12_d8_r2_tsne_vln_Col5a3_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Col5a3", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Cxcl14_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Cxcl14", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Bmper_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Bmper", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+
+png("ad12_d8_r2_tsne_vln_Pi16_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Pi16", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Dpp4_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Dpp4", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Fn1_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Fn1", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+
+png("ad12_d8_r2_tsne_vln_Gdf10_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Gdf10", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Clec11a_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Clec11a", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Fbln1_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Fbln1", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+
+png("ad12_d8_r2_tsne_vln_Top2a_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Top2a", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Birc5_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Birc5", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Stmn1_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Stmn1", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+
+png("ad12_d8_r2_tsne_vln_Pparg_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Pparg", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Lpl_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Lpl", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+png("ad12_d8_r2_tsne_vln_Nnat_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Nnat", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+
+
+
+###################
+#feature plots - Figure 2E
+###################
+png("ad12_d8_r2_features_Pdgfra_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Pdgfra", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Birc5_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Birc5", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Cebpa_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Cebpa", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Plin1_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Plin1", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Adipoq_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Adipoq", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Ucp1_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Ucp1", reduction = "tsne") + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+
+
+
+
+###Figure 4A
+png("ad12_d8_r2_features_Nnat_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Nnat", reduction = "tsne", cols = c("#d3d3d3", "#8d1ddf"), pt.size = 1) + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Dcn_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Dcn", reduction = "tsne", cols = c("#d3d3d3", "#00CD00"), pt.size = 1) + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Top2a_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Top2a", reduction = "tsne", cols = c("#d3d3d3", "#FF0000"), pt.size = 1) + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+
+
+
+
+###Figure 3A
+png("ad12_d8_r2_features_Bmper_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Bmper", reduction = "tsne", cols = c("#d3d3d3", "#00CD00"), pt.size = 1) + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Gdf10_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Gdf10", reduction = "tsne", cols = c("#d3d3d3", "#FF00FF"), pt.size = 1) + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Pi16_1.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Pi16", reduction = "tsne", cols = c("#d3d3d3", "#FF0000"), pt.size = 1) + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+png("ad12_d8_r2_features_Pdgfra_2.png", height = 480, width = 480)
+FeaturePlot(ASCs_vln, features = "Pdgfra", reduction = "tsne", pt.size = 1) + theme(text = element_text(size = 20, face = "bold")) 
+dev.off()
+
+
+
+
+###Figure 9B
+
+png("ad12_d8_r2_tsne_vln_Adam12_1.png", height = 800, width = 1120)
+VlnPlot(ASCs_vln, "Adam12", pt.size = 0, cols = c("#00BFC4", "#F8766D", "#00BA38", "#B79F00", "#619CFF", "#F564E3")) + theme(text = element_text(size = 40, face = "bold")) + NoLegend() + theme(axis.text=element_text(size=40))
+dev.off()
+
+
+
+######################################
+######################################
+#volcano plot DEG analysis Figure 2 - figure supplement 2C
+
+
+ad12_d8_r2_t[["seurat_cident"]] <- Idents(object = ad12_d8_r2_t)
+
+ad12_d8_r2_t$cluster.treatment <- paste(Idents(ad12_d8_r2_t), ad12_d8_r2_t$Treatment, sep = "_")
+ad12_d8_r2_t@meta.data$cluster.treatment %>% table()
+#   ASC1_cold-activated_COLD ASC1_cold-activated_CONTROL 
+#                       5166                         241 
+#        ASC1_quiescent_COLD      ASC1_quiescent_CONTROL 
+#                        523                        3228 
+#                  ASC2_COLD                ASC2_CONTROL 
+#                       2214                        2628 
+#                  ASC3_COLD                ASC3_CONTROL 
+#                       1082                        1171 
+#           Prolif/Diff_COLD         Prolif/Diff_CONTROL 
+#                       2358                          19 
+#       Prolif/Non-diff_COLD     Prolif/Non-diff_CONTROL 
+#                        994                          35
+Idents(ad12_d8_r2_t) <- "cluster.treatment"
+levels(Idents(ad12_d8_r2_t))
+# [1] "ASC1_quiescent_CONTROL"      "ASC3_CONTROL"               
+# [3] "ASC2_CONTROL"                "ASC1_cold-activated_CONTROL"
+# [5] "Prolif/Diff_CONTROL"         "Prolif/Non-diff_CONTROL"    
+# [7] "ASC3_COLD"                   "Prolif/Non-diff_COLD"       
+# [9] "ASC1_quiescent_COLD"         "ASC1_cold-activated_COLD"   
+#[11] "Prolif/Diff_COLD"            "ASC2_COLD" 
+
+
+
+DefaultAssay(ad12_d8_r2_t) <- "RNA"
+ad12_d8_r2_t <- ScaleData(ad12_d8_r2_t, verbose = FALSE)
+ad12_d8_r2_t_ASC2convcold <- FindMarkers(ad12_d8_r2_t, ident.1 = "ASC2_CONTROL", ident.2 = "ASC2_COLD", logfc.threshold = 0)
+write.csv(ad12_d8_r2_t_ASC2convcold, "ad12_d8_r2_t_ASC2convcold.csv")
+ad12_d8_r2_t_ASC3convcold <- FindMarkers(ad12_d8_r2_t, ident.1 = "ASC3_CONTROL", ident.2 = "ASC3_COLD", logfc.threshold = 0)
+write.csv(ad12_d8_r2_t_ASC3convcold, "ad12_d8_r2_t_ASC3convcold.csv")
+
+
+
+
+Idents(ad12_d8_r2_t) <- "seurat_cident"
+
+new.cluster.ids2 <- c("ASC1", "ASC1", "ASC2", "ASC3", "Prolif/Non-diff", "Prolif/Diff")
+names(new.cluster.ids2) <- levels(ad12_d8_r2_t)
+ad12_d8_r2_t_ASC1s <- RenameIdents(ad12_d8_r2_t, new.cluster.ids2)
+levels(ad12_d8_r2_t_ASC1s)
+#[1] "ASC1"            "ASC2"            "ASC3"            "Prolif/Non-diff"
+#[5] "Prolif/Diff"  
+
+
+ad12_d8_r2_t_ASC1s$cluster.treatment2 <- paste(Idents(ad12_d8_r2_t_ASC1s), ad12_d8_r2_t_ASC1s$Treatment, sep = "_")
+ad12_d8_r2_t_ASC1s@meta.data$cluster.treatment2 %>% table()
+#              ASC1_COLD            ASC1_CONTROL               ASC2_COLD 
+#                   5689                    3469                    2214 
+#           ASC2_CONTROL               ASC3_COLD            ASC3_CONTROL 
+#                   2628                    1082                    1171 
+#       Prolif/Diff_COLD     Prolif/Diff_CONTROL    Prolif/Non-diff_COLD 
+#                   2358                      19                     994 
+#Prolif/Non-diff_CONTROL 
+#                     35
+
+
+
+Idents(ad12_d8_r2_t_ASC1s) <- "cluster.treatment2"
+levels(Idents(ad12_d8_r2_t_ASC1s))
+# [1] "ASC1_CONTROL"            "ASC3_CONTROL"           
+# [3] "ASC2_CONTROL"            "Prolif/Diff_CONTROL"    
+# [5] "Prolif/Non-diff_CONTROL" "ASC3_COLD"              
+# [7] "Prolif/Non-diff_COLD"    "ASC1_COLD"              
+# [9] "Prolif/Diff_COLD"        "ASC2_COLD"
+
+
+
+DefaultAssay(ad12_d8_r2_t_ASC1s) <- "RNA"
+ad12_d8_r2_t_ASC1s <- ScaleData(ad12_d8_r2_t_ASC1s, verbose = FALSE)
+ad12_d8_r2_t_ASC1s_ASC1convcold <- FindMarkers(ad12_d8_r2_t_ASC1s, ident.1 = "ASC1_CONTROL", ident.2 = "ASC1_COLD", logfc.threshold = 0)
+write.csv(ad12_d8_r2_t_ASC1s_ASC1convcold, "ad12_d8_r2_t_ASC1s_ASC1convcold.csv")
+
+
+
+
+#https://biocorecrg.github.io/CRG_RIntroduction/volcano-plots.html
+library(ggrepel)
+
+ASC1cvcvolcano <- read.csv("ad12_d8_r2_t_ASC1s_ASC1convcold.csv", header = TRUE)
+
+ASC1cvcvolcano$diffexpressed <- "NO"
+ASC1cvcvolcano$diffexpressed[ASC1cvcvolcano$avg_logFC > 0.5 & ASC1cvcvolcano$p_val_adj < 0.05] <- "UP"
+ASC1cvcvolcano$diffexpressed[ASC1cvcvolcano$avg_logFC < -0.5 & ASC1cvcvolcano$p_val_adj < 0.05] <- "DOWN"
+
+ASC1cvcvolcano$delabel <- NA
+ASC1cvcvolcano$delabel[ASC1cvcvolcano$diffexpressed != "NO"] <- ASC1cvcvolcano$X[ASC1cvcvolcano$diffexpressed != "NO"]
+
+png("ASC1volcano_1.png", height = 720, width = 720)
+ggplot(data=ASC1cvcvolcano, aes(x=avg_logFC, y=-log10(p_val_adj), col=diffexpressed)) +
+        geom_point() + 
+        theme_minimal() +
+        scale_color_manual(values=c("red", "black", "blue")) +
+        geom_vline(xintercept=c(-0.5, 0.5), col="red") +
+        geom_hline(yintercept=-log10(0.05), col="red") +
+        xlim(-2, 2) +
+        ylim(-10, 310) +
+        theme(legend.position = "none") +
+        labs(title = "ASC1_CONTROL vs ASC1_COLD") +
+        theme(text = element_text(size = 20, face = "bold")) +
+        theme(plot.margin=unit(c(20,20,20,20),"pt")) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        theme(axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0))) +
+        theme(axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0))) +
+        xlab("log2(fold change)") +
+        ylab("-log10(adj.p-value)")
+dev.off()
+
+
+ASC1cvcup <- length(which(ASC1cvcvolcano$diffexpressed == "UP")) #68
+ASC1cvcdown <- length(which(ASC1cvcvolcano$diffexpressed == "DOWN")) #116
+
+
+
+
+#####################ASC2
+
+ASC2volcano <- read.csv("ad12_d8_r2_t_ASC2convcold.csv", header = TRUE)
+
+
+ASC2volcano$diffexpressed <- "NO"
+ASC2volcano$diffexpressed[ASC2volcano$avg_logFC > 0.5 & ASC2volcano$p_val_adj < 0.05] <- "UP"
+ASC2volcano$diffexpressed[ASC2volcano$avg_logFC < -0.5 & ASC2volcano$p_val_adj < 0.05] <- "DOWN"
+
+ASC2volcano$delabel <- NA
+ASC2volcano$delabel[ASC2volcano$diffexpressed != "NO"] <- ASC2volcano$X[ASC2volcano$diffexpressed != "NO"]
+
+png("ASC2volcano_1.png", height = 720, width = 720)
+ggplot(data=ASC2volcano, aes(x=avg_logFC, y=-log10(p_val_adj), col=diffexpressed)) +
+        geom_point() + 
+        theme_minimal() +
+        scale_color_manual(values=c("red", "black", "blue")) +
+        geom_vline(xintercept=c(-0.5, 0.5), col="red") +
+        geom_hline(yintercept=-log10(0.05), col="red") +
+        xlim(-2, 2) +
+        ylim(-10, 310) +
+        theme(legend.position = "none") +
+        labs(title = "ASC2_CONTROL vs ASC2_COLD") +
+        theme(text = element_text(size = 20, face = "bold")) +
+        theme(plot.margin=unit(c(20,20,20,20),"pt")) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        theme(axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0))) +
+        theme(axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0))) +
+        xlab("log2(fold change)") +
+        ylab("-log10(adj.p-value)")
+dev.off()
+
+ASC2up <- length(which(ASC2volcano$diffexpressed == "UP")) #10
+ASC2down <- length(which(ASC2volcano$diffexpressed == "DOWN")) #40
+
+
+#####################ASC3
+
+ASC3volcano <- read.csv("ad12_d8_r2_t_ASC3convcold.csv", header = TRUE)
+
+ASC3volcano$diffexpressed <- "NO"
+ASC3volcano$diffexpressed[ASC3volcano$avg_logFC > 0.5 & ASC3volcano$p_val_adj < 0.05] <- "UP"
+ASC3volcano$diffexpressed[ASC3volcano$avg_logFC < -0.5 & ASC3volcano$p_val_adj < 0.05] <- "DOWN"
+
+ASC3volcano$delabel <- NA
+ASC3volcano$delabel[ASC3volcano$diffexpressed != "NO"] <- ASC3volcano$X[ASC3volcano$diffexpressed != "NO"]
+
+png("ASC3volcano_1.png", height = 720, width = 720)
+ggplot(data=ASC3volcano, aes(x=avg_logFC, y=-log10(p_val_adj), col=diffexpressed)) +
+        geom_point() + 
+        theme_minimal() +
+        scale_color_manual(values=c("red", "black", "blue")) +
+        geom_vline(xintercept=c(-0.5, 0.5), col="red") +
+        geom_hline(yintercept=-log10(0.05), col="red") +
+        xlim(-2, 2) +
+        ylim(-10, 310) +
+        theme(legend.position = "none") +
+        labs(title = "ASC3_CONTROL vs ASC3_COLD") +
+        theme(text = element_text(size = 20, face = "bold")) +
+        theme(plot.margin=unit(c(20,20,20,20),"pt")) +
+        theme(plot.title = element_text(hjust = 0.5)) +
+        theme(axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0))) +
+        theme(axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0))) +
+        xlab("log2(fold change)") +
+        ylab("-log10(adj.p-value)")
+dev.off()
+
+ASC3up <- length(which(ASC3volcano$diffexpressed == "UP")) #17
+ASC3down <- length(which(ASC3volcano$diffexpressed == "DOWN")) #34
+
+
+
+
