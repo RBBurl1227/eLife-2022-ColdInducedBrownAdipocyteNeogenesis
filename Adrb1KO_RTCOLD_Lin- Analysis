@@ -1,0 +1,427 @@
+#######################
+#######################Seurat
+#######################
+
+#######r/3.5.1
+#ggplot2_3.3.0   reticulate_1.15 dplyr_0.8.5	Seurat_3.1.5     
+
+
+
+############move SoupX output to Seurat processing
+############
+###########Input to Seurat
+############
+WT_RT.data <- Read10X(data.dir = "~/SoupX/PATH/Adrb1KO_WT_RT_LN_SoupX")
+WT_RT <- CreateSeuratObject(counts = WT_RT.data, min.cells=3, project = "Adrb1KO_WT_RT_LN_SoupX")
+WT_RT$Genotype <- "WT"
+WT_RT$Treatment <- "CONTROL"
+str(WT_RT) #6082
+############################################################################
+KO_RT.data <- Read10X(data.dir = "~/SoupX/PATH/Adrb1KO_KO_RT_LN_SoupX")
+KO_RT <- CreateSeuratObject(counts = KO_RT.data, min.cells=3, project = "Adrb1KO_KO_RT_LN_SoupX")
+KO_RT$Genotype <- "KO"
+KO_RT$Treatment <- "CONTROL"
+str(KO_RT) #4204
+############################################################################
+WT_COLD.data <- Read10X(data.dir = "~/SoupX/PATH/Adrb1KO_WT_COLD_LN_SoupX")
+WT_COLD <- CreateSeuratObject(counts = WT_COLD.data, min.cells=3, project = "Adrb1KO_WT_COLD_LN_SoupX")
+WT_COLD$Genotype <- "WT"
+WT_COLD$Treatment <- "COLD"
+str(WT_COLD) #7472
+############################################################################
+KO_COLD.data <- Read10X(data.dir = "~/SoupX/PATH/Adrb1KO_KO_COLD_LN_SoupX")
+KO_COLD <- CreateSeuratObject(counts = KO_COLD.data, min.cells=3, project = "Adrb1KO_KO_COLD_LN_SoupX")
+KO_COLD$Genotype <- "KO"
+KO_COLD$Treatment <- "COLD"
+str(KO_COLD) #4681
+
+
+###################
+#Subset
+###################
+WT_RT[["percent.mt"]] <- PercentageFeatureSet(WT_RT, pattern = "^mt-")
+KO_RT[["percent.mt"]] <- PercentageFeatureSet(KO_RT, pattern = "^mt-")
+WT_COLD[["percent.mt"]] <- PercentageFeatureSet(WT_COLD, pattern = "^mt-")
+KO_COLD[["percent.mt"]] <- PercentageFeatureSet(KO_COLD, pattern = "^mt-")
+WT_RT <- subset(WT_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+KO_RT <- subset(KO_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+WT_COLD <- subset(WT_COLD, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+KO_COLD <- subset(KO_COLD, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+str(WT_RT) #4818
+str(KO_RT) #2427
+str(WT_COLD) #6885
+str(KO_COLD) #4202
+
+
+###################
+#Normalize
+###################
+WT_RTn <- NormalizeData(WT_RT)
+KO_RTn <- NormalizeData(KO_RT)
+WT_COLDn <- NormalizeData(WT_COLD)
+KO_COLDn <- NormalizeData(KO_COLD)
+
+
+
+
+###################
+###################Integrate All Libraries
+
+
+###################
+#Find Variable Features
+###################
+WT_RTn <- FindVariableFeatures(WT_RTn, selection.method = "vst", nfeatures = 2000)
+KO_RTn <- FindVariableFeatures(KO_RTn, selection.method = "vst", nfeatures = 2000)
+WT_COLDn <- FindVariableFeatures(WT_COLDn, selection.method = "vst", nfeatures = 2000)
+KO_COLDn <- FindVariableFeatures(KO_COLDn, selection.method = "vst", nfeatures = 2000)
+
+
+###################
+#Integrate
+#######################dim = 12, res 0.1
+anchorsi12 <- FindIntegrationAnchors(object.list = list(WT_RTn, KO_RTn, WT_COLDn, KO_COLDn), dims = 1:12) 
+A1KOLinneg_i_d12 <- IntegrateData(anchorset = anchorsi12, dims = 1:12)
+###################
+#Scale
+###################
+allgenesi12 <- rownames(A1KOLinneg_i_d12)
+A1KOLinneg_i_d12 <- ScaleData(A1KOLinneg_i_d12, features = allgenesi12)
+###################
+#PCs
+###################
+A1KOLinneg_i_d12 <- RunPCA(A1KOLinneg_i_d12, features = VariableFeatures(object = A1KOLinneg_i_d12))
+A1KOLinneg_i_d12 <- FindNeighbors(A1KOLinneg_i_d12, dims = 1:12)
+###################
+#Visualize Data
+###################
+A1KOLinneg_i_d12_r1 <- FindClusters(A1KOLinneg_i_d12, resolution = 0.1)
+#TSNE
+A1KOLinneg_i_d12_r1_t <- RunTSNE(A1KOLinneg_i_d12_r1, dims = 1:12)
+png("A1KOLinneg_i_d12_r1_tsne_1.png")
+DimPlot(A1KOLinneg_i_d12_r1_t, reduction = "tsne", label = TRUE)
+dev.off()
+png("A1KOLinneg_i_d12_r1_tsne_2.png")
+DimPlot(A1KOLinneg_i_d12_r1_t, reduction = "tsne", split.by = "Treatment")
+dev.off()
+png("A1KOLinneg_i_d12_r1_tsne_3.png")
+DimPlot(A1KOLinneg_i_d12_r1_t, reduction = "tsne", split.by = "Genotype")
+dev.off()
+png("A1KOLinneg_i_d12_r1_tsne_4.png")
+DimPlot(A1KOLinneg_i_d12_r1_t, reduction = "tsne", split.by = "orig.ident")
+dev.off()
+DefaultAssay(A1KOLinneg_i_d12_r1_t) <- "RNA"
+A1KOLinneg_i_d12_r1_t <- ScaleData(A1KOLinneg_i_d12_r1_t, verbose = FALSE)
+png("A1KOLinneg_i_d12_r1_tsne_features_1.png")
+FeaturePlot(A1KOLinneg_i_d12_r1_t, features = c("Pi16", "Clec11a", "Cdh5", "Myh11", "Cd52", "Mpz"), reduction = "tsne") 
+dev.off()
+png("A1KOLinneg_i_d12_r1_tsne_features_2.png")
+FeaturePlot(A1KOLinneg_i_d12_r1_t, features = c("Timp1", "Birc5", "Car3", "Ucp1"), reduction = "tsne") 
+dev.off()
+png("A1KOLinneg_i_d12_r1_tsne_features_3.png")
+FeaturePlot(A1KOLinneg_i_d12_r1_t, features = c("Pdgfra", "Dcn"), reduction = "tsne") 
+dev.off()
+
+
+
+
+##Cluster idents
+
+#C0 - ASC2
+#C1 - ASC1
+#C2 - ASC3
+#C3 - VEC
+#C4 - VSMC
+#C5 - Immune
+#C6 - Prolif/Diff
+#C7 - Luminal Cell
+#C8 - Schwann
+
+
+###################
+#Set new cluster ids
+###################
+new.cluster.ids <- c("ASC2", "ASC1", "ASC3", "VEC", "VSMC", "Immune", "Prolif/Diff", "Luminal Cell", "Schwann")
+names(new.cluster.ids) <- levels(A1KOLinneg_i_d12_r1_t)
+A1KOLinneg_i_d12_r1_t <- RenameIdents(A1KOLinneg_i_d12_r1_t, new.cluster.ids)
+levels(A1KOLinneg_i_d12_r1_t)
+#[1] "ASC2"         "ASC1"         "ASC3"         "VEC"          "VSMC"        
+#[6] "Immune"       "Prolif/Diff"  "Luminal Cell" "Schwann"
+levels(x = A1KOLinneg_i_d12_r1_t) <- c("ASC1", "ASC2", "ASC3", "Prolif/Diff", "VEC", "VSMC", "Luminal Cell", "Immune", "Schwann")
+levels(A1KOLinneg_i_d12_r1_t)
+#[1] "ASC1"         "ASC2"         "ASC3"         "Prolif/Diff"  "VEC"         
+#[6] "VSMC"         "Luminal Cell" "Immune"       "Schwann"
+
+
+
+###################
+#change order of treatment and genotype for split tsne
+###################
+A1KOLinneg_i_d12_r1_t$Treatment <- factor(A1KOLinneg_i_d12_r1_t$Treatment, levels = c('CONTROL', 'COLD'))
+A1KOLinneg_i_d12_r1_t$Genotype <- factor(A1KOLinneg_i_d12_r1_t$Genotype, levels = c('WT', 'KO'))
+
+
+
+###################
+#labeled tsne Figure 5A
+###################
+png("A1KOLinneg_i_d12_r1_tsne_labels_1.png", height = 480, width = 640)
+DimPlot(A1KOLinneg_i_d12_r1_t, reduction = "tsne", pt.size = 0.8, cols = c("#F8766D", "#00BA38", "#B79F00", "#619CFF", "#31d8d3", "#ED962C", "#00C19F", "#C77CFF", "#FF61CC")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "Linneg Cells")
+dev.off()
+
+
+
+####Figure 5B
+
+####color Adrb1+ cells
+A1KOLinneg_i_d12_r1_t_Adrb1 <- A1KOLinneg_i_d12_r1_t
+poscells <- WhichCells(A1KOLinneg_i_d12_r1_t_Adrb1, expression = Adrb1 > 0)
+A1KOLinneg_i_d12_r1_t_Adrb1$Adrb1_exp<- ifelse(colnames(A1KOLinneg_i_d12_r1_t_Adrb1) %in% poscells, "Pos", "Neg")
+A1KOLinneg_i_d12_r1_t_Adrb1@meta.data$Adrb1_exp %>% table()
+#  Neg   Pos 
+#17950   382
+Idents(A1KOLinneg_i_d12_r1_t_Adrb1) <- "Adrb1_exp"
+png("A1KOLinneg_i_d12_r1_t_Adrb1exp_1.png", height = 480, width = 960)
+DimPlot(A1KOLinneg_i_d12_r1_t_Adrb1, reduction = "tsne", cols = c("#d3d3d3", "#e60000"), pt.size = 1.5, split.by = "Genotype") + theme(text = element_text(size = 25, face = "bold")) + NoLegend()
+dev.off()
+
+
+
+
+######### cluster markers 
+A1KOLinneg_i_d12_r1_t_markers_ASC1 <- FindMarkers(A1KOLinneg_i_d12_r1_t, ident.1 = "ASC1", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+A1KOLinneg_i_d12_r1_t_markers_ASC2 <- FindMarkers(A1KOLinneg_i_d12_r1_t, ident.1 = "ASC2", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+A1KOLinneg_i_d12_r1_t_markers_ASC3 <- FindMarkers(A1KOLinneg_i_d12_r1_t, ident.1 = "ASC3", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+A1KOLinneg_i_d12_r1_t_markers_ProDiff <- FindMarkers(A1KOLinneg_i_d12_r1_t, ident.1 = "Proliferating/Differentiating", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+A1KOLinneg_i_d12_r1_t_markers_VEC <- FindMarkers(A1KOLinneg_i_d12_r1_t, ident.1 = "VEC", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+A1KOLinneg_i_d12_r1_t_markers_VSMC <- FindMarkers(A1KOLinneg_i_d12_r1_t, ident.1 = "VSMC", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+A1KOLinneg_i_d12_r1_t_markers_LC <- FindMarkers(A1KOLinneg_i_d12_r1_t, ident.1 = "Luminal Cell", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+A1KOLinneg_i_d12_r1_t_markers_Immune <- FindMarkers(A1KOLinneg_i_d12_r1_t, ident.1 = "Immune", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+A1KOLinneg_i_d12_r1_t_markers_Schwann <- FindMarkers(A1KOLinneg_i_d12_r1_t, ident.1 = "Schwann", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+write.csv(A1KOLinneg_i_d12_r1_t_markers_ASC1, "A1KOLinneg_i_d12_r1_t_markers_ASC1.csv")
+write.csv(A1KOLinneg_i_d12_r1_t_markers_ASC2, "A1KOLinneg_i_d12_r1_t_markers_ASC2.csv")
+write.csv(A1KOLinneg_i_d12_r1_t_markers_ASC3, "A1KOLinneg_i_d12_r1_t_markers_ASC3.csv")
+write.csv(A1KOLinneg_i_d12_r1_t_markers_ProDiff, "A1KOLinneg_i_d12_r1_t_markers_ProDiff.csv")
+write.csv(A1KOLinneg_i_d12_r1_t_markers_VEC, "A1KOLinneg_i_d12_r1_t_markers_VEC.csv")
+write.csv(A1KOLinneg_i_d12_r1_t_markers_VSMC, "A1KOLinneg_i_d12_r1_t_markers_VSMC.csv")
+write.csv(A1KOLinneg_i_d12_r1_t_markers_LC, "A1KOLinneg_i_d12_r1_t_markers_LC.csv")
+write.csv(A1KOLinneg_i_d12_r1_t_markers_Immune, "A1KOLinneg_i_d12_r1_t_markers_Immune.csv")
+write.csv(A1KOLinneg_i_d12_r1_t_markers_Schwann, "A1KOLinneg_i_d12_r1_t_markers_Schwann.csv")
+
+
+
+
+A1KOLinneg_i_d12_r1_t[["seurat_cident"]] <- Idents(object = A1KOLinneg_i_d12_r1_t)
+A1KOLinneg_i_d12_r1_t_ASCs <- subset(A1KOLinneg_i_d12_r1_t, idents = c("ASC1", "ASC2", "ASC3", "Prolif/Diff")) 
+A1KOLinneg_i_d12_r1_t@meta.data$seurat_cident %>% table()
+#        ASC1         ASC2         ASC3  Prolif/Diff          VEC         VSMC 
+#        4009         4648         3933          829         1622         1010 
+#Luminal Cell       Immune      Schwann 
+#         818          994          469
+A1KOLinneg_i_d12_r1_t_ASCs@meta.data$seurat_cident %>% table()
+#        ASC1         ASC2         ASC3  Prolif/Diff          VEC         VSMC 
+#        4009         4648         3933          829            0            0 
+#Luminal Cell       Immune      Schwann 
+#           0            0            0
+write.csv(A1KOLinneg_i_d12_r1_t_ASCs@meta.data, "A1KOLinneg_i_d12_r1_t_ASCs_md.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#################
+#################Subset raw data to just ASCs
+#################
+
+sub_md <- read.csv("A1KOLinneg_i_d12_r1_t_ASCs_md.csv", header = TRUE)
+str(sub_md) #13419
+sub_md_con <- sub_md[sub_md$Treatment == 'CONTROL',]
+sub_md_cold <- sub_md[sub_md$Treatment == 'COLD',]
+str(sub_md_con) #5238
+str(sub_md_cold) #8181
+
+sub_md_con_wt <- sub_md_con[sub_md_con$Genotype == 'WT',]
+str(sub_md_con_wt) #3695
+head(sub_md_con_wt) #-1_1
+sub_md_con_ko <- sub_md_con[sub_md_con$Genotype == 'KO',]
+str(sub_md_con_ko) #1543
+head(sub_md_con_ko) #-1_2
+
+sub_md_cold_wt <- sub_md_cold[sub_md_cold$Genotype == 'WT',]
+str(sub_md_cold_wt) #5118
+head(sub_md_cold_wt) #-1_3
+sub_md_cold_ko <- sub_md_cold[sub_md_cold$Genotype == 'KO',]
+str(sub_md_cold_ko) #3063
+head(sub_md_cold_ko) #-1_4
+
+
+sub_md_con_wt$X <- gsub('_1', '', sub_md_con_wt$X)
+sub_md_con_ko$X <- gsub('_2', '', sub_md_con_ko$X)
+sub_md_cold_wt$X <- gsub('_3', '', sub_md_cold_wt$X)
+sub_md_cold_ko$X <- gsub('_4', '', sub_md_cold_ko$X)
+head(sub_md_con_wt)
+head(sub_md_con_ko)
+head(sub_md_cold_wt)
+head(sub_md_cold_ko)
+
+
+######################
+#subset to just ASCs
+######################
+
+WT_RT_sub <- subset(WT_RT, cells = sub_md_con_wt$X)
+KO_RT_sub <- subset(KO_RT, cells = sub_md_con_ko$X)
+WT_COLD_sub <- subset(WT_COLD, cells = sub_md_cold_wt$X)
+KO_COLD_sub <- subset(KO_COLD, cells = sub_md_cold_ko$X)
+str(WT_RT_sub) #3695
+str(KO_RT_sub) #1543
+str(WT_COLD_sub) #5118
+str(KO_COLD_sub) #3063
+
+
+###################
+#Normalize
+###################
+WT_RT_subn <- NormalizeData(WT_RT_sub)
+KO_RT_subn <- NormalizeData(KO_RT_sub)
+WT_COLD_subn <- NormalizeData(WT_COLD_sub)
+KO_COLD_subn <- NormalizeData(KO_COLD_sub)
+
+
+###################
+#Find Variable Features
+###################
+WT_RT_subn <- FindVariableFeatures(WT_RT_subn, selection.method = "vst", nfeatures = 2000)
+KO_RT_subn <- FindVariableFeatures(KO_RT_subn, selection.method = "vst", nfeatures = 2000)
+WT_COLD_subn <- FindVariableFeatures(WT_COLD_subn, selection.method = "vst", nfeatures = 2000)
+KO_COLD_subn <- FindVariableFeatures(KO_COLD_subn, selection.method = "vst", nfeatures = 2000)
+
+
+
+###################
+#Integrate
+#######################dim = 7, res 0.1
+anchorsisub7 <- FindIntegrationAnchors(object.list = list(WT_RT_subn, KO_RT_subn, WT_COLD_subn, KO_COLD_subn), dims = 1:7) 
+AP_ASC_i_d7 <- IntegrateData(anchorset = anchorsisub7, dims = 1:7)
+###################
+#Scale
+###################
+allgenesisub7 <- rownames(AP_ASC_i_d7)
+AP_ASC_i_d7 <- ScaleData(AP_ASC_i_d7, features = allgenesisub7)
+###################
+#PCs
+###################
+AP_ASC_i_d7 <- RunPCA(AP_ASC_i_d7, features = VariableFeatures(object = AP_ASC_i_d7))
+AP_ASC_i_d7 <- FindNeighbors(AP_ASC_i_d7, dims = 1:7)
+###################
+#Visualize Data
+###################
+AP_ASC_i_d7_r1 <- FindClusters(AP_ASC_i_d7, resolution = 0.1)
+#TSNE
+AP_ASC_i_d7_r1_t <- RunTSNE(AP_ASC_i_d7_r1, dims = 1:7)
+png("AP_ASC_i_d7_r1_tsne_1.png")
+DimPlot(AP_ASC_i_d7_r1_t, reduction = "tsne")
+dev.off()
+png("AP_ASC_i_d7_r1_tsne_2.png")
+DimPlot(AP_ASC_i_d7_r1_t, reduction = "tsne", split.by = "Treatment")
+dev.off()
+png("AP_ASC_i_d7_r1_tsne_3.png")
+DimPlot(AP_ASC_i_d7_r1_t, reduction = "tsne", split.by = "Genotype")
+dev.off()
+png("AP_ASC_i_d7_r1_tsne_4.png")
+DimPlot(AP_ASC_i_d7_r1_t, reduction = "tsne", split.by = "orig.ident")
+dev.off()
+DefaultAssay(AP_ASC_i_d7_r1_t) <- "RNA"
+AP_ASC_i_d7_r1_t <- ScaleData(AP_ASC_i_d7_r1_t, verbose = FALSE)
+png("AP_ASC_i_d7_r1_tsne_features_1.png")
+FeaturePlot(AP_ASC_i_d7_r1_t, features = c("Pi16", "Clec11a", "Cdh5", "Myh11", "Cd52", "Mpz"), reduction = "tsne") 
+dev.off()
+png("AP_ASC_i_d7_r1_tsne_features_2.png")
+FeaturePlot(AP_ASC_i_d7_r1_t, features = c("Dcn", "Timp1", "Birc5", "Car3", "Ucp1", "Pdgfra"), reduction = "tsne") 
+dev.off()
+
+
+
+
+###################
+#Set new cluster ids
+###################
+new.cluster.ids5 <- c("ASC2", "ASC3", "ASC1", "Prolif/Diff")
+names(new.cluster.ids5) <- levels(AP_ASC_i_d7_r1_t)
+AP_ASC_i_d7_r1_t <- RenameIdents(AP_ASC_i_d7_r1_t, new.cluster.ids5)
+levels(AP_ASC_i_d7_r1_t)
+#[1] "ASC2"        "ASC3"        "ASC1"        "Prolif/Diff"
+levels(x = AP_ASC_i_d7_r1_t) <- c("ASC1", "ASC2", "ASC3", "Prolif/Diff")
+levels(AP_ASC_i_d7_r1_t)
+#[1] "ASC1"        "ASC2"        "ASC3"        "Prolif/Diff"
+
+
+
+
+###################
+#change order of treatment and genotype for split tsne
+###################
+AP_ASC_i_d7_r1_t$Treatment <- factor(AP_ASC_i_d7_r1_t$Treatment, levels = c('CONTROL', 'COLD'))
+AP_ASC_i_d7_r1_t$Genotype <- factor(AP_ASC_i_d7_r1_t$Genotype, levels = c('WT', 'KO'))
+
+
+
+
+###################
+#labeled tsne Figure 4C
+###################
+png("AP_ASC_i_d7_r1_tsne_labels_split_1.png", height = 480, width = 800)
+DimPlot(AP_ASC_i_d7_r1_t, reduction = "tsne", pt.size = 0.8, split.by = "Treatment", cols = c("#F8766D", "#00BA38", "#B79F00", "#619CFF")) + theme(text = element_text(size = 25, face = "bold")) + labs(title = "ASCs") + NoLegend()
+dev.off()
+
+
+
+
+####################Table 1A and Figure 4C bar graph values
+AP_ASC_i_d7_r1_t[["seurat_cident"]] <- Idents(object = AP_ASC_i_d7_r1_t)
+AP_ASC_i_d7_r1_t$cluster.origident <- paste(Idents(AP_ASC_i_d7_r1_t), AP_ASC_i_d7_r1_t$orig.ident, sep = "_")
+AP_ASC_i_d7_r1_t@meta.data$cluster.origident %>% table()
+#       ASC1_iBAT_SoupX_APneg_6C_Linneg        ASC1_iBAT_SoupX_APneg_RT_Linneg 
+#                                  1903                                    591 
+#       ASC1_iBAT_SoupX_APpos_6C_Linneg        ASC1_iBAT_SoupX_APpos_RT_Linneg 
+#                                  1019                                    399 
+#       ASC2_iBAT_SoupX_APneg_6C_Linneg        ASC2_iBAT_SoupX_APneg_RT_Linneg 
+#                                  1269                                   1838 
+#       ASC2_iBAT_SoupX_APpos_6C_Linneg        ASC2_iBAT_SoupX_APpos_RT_Linneg 
+#                                   942                                    594 
+#       ASC3_iBAT_SoupX_APneg_6C_Linneg        ASC3_iBAT_SoupX_APneg_RT_Linneg 
+#                                  1509                                   1235 
+#       ASC3_iBAT_SoupX_APpos_6C_Linneg        ASC3_iBAT_SoupX_APpos_RT_Linneg 
+#                                   931                                    541 
+#Prolif/Diff_iBAT_SoupX_APneg_6C_Linneg Prolif/Diff_iBAT_SoupX_APneg_RT_Linneg 
+#                                   437                                     31 
+#Prolif/Diff_iBAT_SoupX_APpos_6C_Linneg Prolif/Diff_iBAT_SoupX_APpos_RT_Linneg 
+#                                   171                                      9
+
+
+
+
+
+
+AP_ASC_i_d7_r1_t2_ASC1markers <- FindMarkers(AP_ASC_i_d7_r1_t2, ident.1 = "ASC1", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+AP_ASC_i_d7_r1_t2_ASC2markers <- FindMarkers(AP_ASC_i_d7_r1_t2, ident.1 = "ASC2", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+AP_ASC_i_d7_r1_t2_ASC3markers <- FindMarkers(AP_ASC_i_d7_r1_t2, ident.1 = "ASC3", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+AP_ASC_i_d7_r1_t2_PDmarkers <- FindMarkers(AP_ASC_i_d7_r1_t2, ident.1 = "Prolif/Diff", min.pct = 0.20, logfc.threshold = 0.2, only.pos = TRUE)
+write.csv(AP_ASC_i_d7_r1_t2_ASC1markers, "AP_ASC_i_d7_r1_t2_ASC1markers.csv")
+write.csv(AP_ASC_i_d7_r1_t2_ASC2markers, "AP_ASC_i_d7_r1_t2_ASC2markers.csv")
+write.csv(AP_ASC_i_d7_r1_t2_ASC3markers, "AP_ASC_i_d7_r1_t2_ASC3markers.csv")
+write.csv(AP_ASC_i_d7_r1_t2_PDmarkers, "AP_ASC_i_d7_r1_t2_PDmarkers.csv")
