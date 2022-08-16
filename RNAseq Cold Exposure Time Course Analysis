@@ -1,0 +1,171 @@
+#######################
+#######################Align Quant-seq reads. Example for one file.
+#######################
+
+#Download files to create genome index
+wget ftp://ftp.ensembl.org/pub/release-98/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna.primary_assembly.fa.gz
+wget ftp://ftp.ensembl.org/pub/release-98/gtf/mus_musculus/Mus_musculus.GRCm38.98.gtf.gz
+
+gunzip Mus_musculus.GRCm38.dna.primary_assembly.fa.gz
+gunzip Mus_musculus.GRCm38.98.gtf.gz
+
+
+
+module load star/2.6.1d
+STAR
+
+#Create genome index
+STAR --runMode genomeGenerate --genomeDir ./ \
+--genomeFastaFiles Mus_musculus.GRCm38.dna.primary_assembly.fa --sjdbGTFfile Mus_musculus.GRCm38.98.gtf \
+--sjdbOverhang 99
+#Jan 15 14:40:31 ..... started STAR run
+#Jan 15 14:40:32 ... starting to generate Genome files
+#Jan 15 14:41:59 ... starting to sort Suffix Array. This may take a long time...
+#Jan 15 14:42:32 ... sorting Suffix Array chunks and saving them to disk...
+#Jan 15 17:24:04 ... loading chunks from disk, packing SA...
+#Jan 15 17:25:39 ... finished generating suffix array
+#Jan 15 17:25:39 ... generating Suffix Array index
+#Jan 15 17:29:29 ... completed Suffix Array index
+#Jan 15 17:29:29 ..... processing annotations GTF
+#Jan 15 17:29:56 ..... inserting junctions into the genome indices
+#Jan 15 17:39:16 ... writing Genome to disk ...
+#Jan 15 17:39:55 ... writing Suffix Array to disk ...
+#Jan 15 17:47:04 ... writing SAindex to disk
+#Jan 15 17:47:27 ..... finished successfully
+
+
+#Align reads
+STAR --genomeDir ~/PATH/index --readFilesIn ~/PATH/fastq/RB-001_S1_L001_R1_001.fastq.gz --readFilesCommand zcat --genomeLoad LoadAndKeep
+#Jan 16 16:04:08 ..... started STAR run
+#Jan 16 16:04:08 ..... loading genome
+#Jan 16 16:04:38 ..... started mapping
+#Jan 16 16:26:42 ..... finished successfully
+
+
+
+
+#######################
+#######################Create Quant-seq count files from STAR aligned .sam files. Example for one file.
+#######################
+
+module load python/3.7
+htseq-count
+
+
+htseq-count ~/PATH/STARaligned/Aligned.out.sam ~/PATH/gtf/Mus_musculus.GRCm38.98.gtf > lib_001.txt
+
+
+
+
+#######################
+#######################Create a .csv file with all counts
+#######################
+
+#load count files for each library
+setwd("~/PATH/HTseqcountfiles")
+lib001 <- read.table("lib_001.txt", header = FALSE, row.names = 1)
+lib002 <- read.table("lib_002.txt", header = FALSE, row.names = 1)
+lib003 <- read.table("lib_003.txt", header = FALSE, row.names = 1)
+lib004 <- read.table("lib_004.txt", header = FALSE, row.names = 1)
+lib005 <- read.table("lib_005.txt", header = FALSE, row.names = 1)
+lib006 <- read.table("lib_006.txt", header = FALSE, row.names = 1)
+lib007 <- read.table("lib_007.txt", header = FALSE, row.names = 1)
+lib008 <- read.table("lib_008.txt", header = FALSE, row.names = 1)
+lib009 <- read.table("lib_009.txt", header = FALSE, row.names = 1)
+lib010 <- read.table("lib_010.txt", header = FALSE, row.names = 1)
+lib011 <- read.table("lib_011.txt", header = FALSE, row.names = 1)
+lib012 <- read.table("lib_012.txt", header = FALSE, row.names = 1)
+lib013 <- read.table("lib_013.txt", header = FALSE, row.names = 1)
+lib014 <- read.table("lib_014.txt", header = FALSE, row.names = 1)
+lib015 <- read.table("lib_015.txt", header = FALSE, row.names = 1)
+lib016 <- read.table("lib_016.txt", header = FALSE, row.names = 1)
+lib017 <- read.table("lib_017.txt", header = FALSE, row.names = 1)
+lib018 <- read.table("lib_018.txt", header = FALSE, row.names = 1)
+lib019 <- read.table("lib_019.txt", header = FALSE, row.names = 1)
+lib020 <- read.table("lib_020.txt", header = FALSE, row.names = 1)
+lib021 <- read.table("lib_021.txt", header = FALSE, row.names = 1)
+lib022 <- read.table("lib_022.txt", header = FALSE, row.names = 1)
+lib023 <- read.table("lib_023.txt", header = FALSE, row.names = 1)
+lib024 <- read.table("lib_024.txt", header = FALSE, row.names = 1)
+lib025 <- read.table("lib_025.txt", header = FALSE, row.names = 1)
+lib026 <- read.table("lib_026.txt", header = FALSE, row.names = 1)
+lib027 <- read.table("lib_027.txt", header = FALSE, row.names = 1)
+lib028 <- read.table("lib_028.txt", header = FALSE, row.names = 1)
+lib029 <- read.table("lib_029.txt", header = FALSE, row.names = 1)
+lib030 <- read.table("lib_030.txt", header = FALSE, row.names = 1)
+lib031 <- read.table("lib_031.txt", header = FALSE, row.names = 1)
+lib032 <- read.table("lib_032.txt", header = FALSE, row.names = 1)
+lib033 <- read.table("lib_033.txt", header = FALSE, row.names = 1)
+lib034 <- read.table("lib_034.txt", header = FALSE, row.names = 1)
+lib035 <- read.table("lib_035.txt", header = FALSE, row.names = 1)
+
+
+#add counts as columns to a single data.frame
+total <- lib001
+total$ART_Rep2 <- lib002$V2
+total$ART_Rep3 <- lib003$V2
+total$ART_Rep4 <- lib004$V2
+total$ART_Rep5 <- lib005$V2
+total$BCold_6hr_Rep1 <- lib006$V2
+total$BCold_6hr_Rep2 <- lib007$V2
+total$BCold_6hr_Rep3 <- lib008$V2
+total$BCold_6hr_Rep4 <- lib009$V2
+total$BCold_6hr_Rep5 <- lib010$V2
+total$CCold_1day_Rep1 <- lib011$V2
+total$CCold_1day_Rep2 <- lib012$V2
+total$CCold_1day_Rep3 <- lib013$V2
+total$CCold_1day_Rep4 <- lib014$V2
+total$CCold_1day_Rep5 <- lib015$V2
+total$DCold_2days_Rep1 <- lib016$V2
+total$DCold_2days_Rep2 <- lib017$V2
+total$DCold_2days_Rep3 <- lib018$V2
+total$DCold_2days_Rep4 <- lib019$V2
+total$DCold_2days_Rep5 <- lib020$V2
+total$ECold_3days_Rep1 <- lib021$V2
+total$ECold_3days_Rep2 <- lib022$V2
+total$ECold_3days_Rep3 <- lib023$V2
+total$ECold_3days_Rep4 <- lib024$V2
+total$ECold_3days_Rep5 <- lib025$V2
+total$FCold_4days_Rep1 <- lib026$V2
+total$FCold_4days_Rep2 <- lib027$V2
+total$FCold_4days_Rep3 <- lib028$V2
+total$FCold_4days_Rep4 <- lib029$V2
+total$FCold_4days_Rep5 <- lib030$V2
+total$GCold_5days_Rep1 <- lib031$V2
+total$GCold_5days_Rep2 <- lib032$V2
+total$GCold_5days_Rep3 <- lib033$V2
+total$GCold_5days_Rep4 <- lib034$V2
+total$GCold_5days_Rep5 <- lib035$V2
+#change first column name to match
+colnames(total)[1] <- c("ART_Rep1")
+
+###remove the summary stats 
+total <- total[-c(55422, 55423, 55424, 55425, 55426),]
+
+cs <- colSums(total)
+cs
+#ART_Rep1  	ART_Rep2  	ART_Rep3  	ART_Rep4  	ART_Rep5
+#4,632,917 	4,644,105 	4,200,294 	5,570,725 	4,590,461
+#
+#BCold_6hr_Rep1  	BCold_6hr_Rep2  	BCold_6hr_Rep3  	BCold_6hr_Rep4  	BCold_6hr_Rep5 
+#3,852,831 			4,253,784 			4,695,056 			4,665,390 			5,414,640 
+#
+#CCold_1day_Rep1  	CCold_1day_Rep1  	CCold_1day_Rep1  	CCold_1day_Rep1  	CCold_1day_Rep1
+#5,268,149 			4,951,296 			6,047,247 			3,846,016 			4,428,694
+#
+#DCold_2days_Rep1  	DCold_2days_Rep1  	DCold_2days_Rep1  	DCold_2days_Rep1  	DCold_2days_Rep1 
+#5,997,235 			4,266,030 			6,031,117 			4,426,136 			3,913,519 
+#
+#ECold_3days_Rep1  	ECold_3days_Rep1  	ECold_3days_Rep1  	ECold_3days_Rep1  	ECold_3days_Rep1 
+#3,945,908 			5,059,141 			5,110,510 			4,895,647 			4,210,183
+#
+#FCold_4days_Rep1  	FCold_4days_Rep1  	FCold_4days_Rep1  	FCold_4days_Rep1  	FCold_4days_Rep1 
+#5,286,632 			5,076,491 			5,394,193 			5,441,940 			5,943,967 
+#
+#GCold_5days_Rep1  	GCold_5days_Rep1  	GCold_5days_Rep1  	GCold_5days_Rep1  	GCold_5days_Rep1 
+#4,446,224 			4,902,083 			5,245,000 			5,709,449 			4,914,611
+
+
+write.csv(total, "Data.Matrix.csv")
+
+
