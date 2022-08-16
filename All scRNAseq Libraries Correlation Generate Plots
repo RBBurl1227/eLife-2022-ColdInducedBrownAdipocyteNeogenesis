@@ -1,0 +1,245 @@
+#################################
+#################################
+#################################correlation plots from Figure 6 and Figure 6 - figure supplement 1
+#################################
+#################################
+
+library(ggplot2)
+library(ggpubr)
+
+
+
+data <- read.csv("scRNAseq_Correlation.csv") #.csv file created with cluster percentages calculated from Seurat analyses
+head(data)
+#Treatment TreatmentGenotype        Sex Genotype Replicate
+#1      COLD           WT_COLD Female\xca       WT      Rep1
+#2   CONTROL        WT_CONTROL Female\xca       WT      Rep1
+#3      COLD           KO_COLD Female\xca       KO      Rep1
+#4   CONTROL        KO_CONTROL Female\xca       KO      Rep1
+#5   CONTROL        WT_CONTROL   Male\xca       WT      Rep1
+#6      COLD           WT_COLD   Male\xca       WT      Rep1
+#Library Linneg_Diff_Total        MAC1      MAC2
+#1    Female_WT_COLD        11.0855213  7.68226552  7.431211
+#2 Female_WT_CONTROL         0.7769845  0.55384615  7.323077
+#3    Female_KO_COLD         6.7893559  4.73397570  4.733976
+#4 Female_KO_CONTROL         0.7728639  0.99180681 11.082363
+#5 Male_Rep1_CONTROL         0.2508062  0.04724781 17.505315
+#6    Male_Rep1_COLD        21.4401788 12.17505366 14.524207
+#MAC3     MONO      DEND2       DEND1     DEND3       DEND4
+#1 21.510343 2.540671 12.482426  7.3207471 2.1188994 0.6025306
+#2  7.353846 5.692308  6.246154  0.7076923 0.4923077 0.1538462
+#3 15.542522 2.744030  7.687474  3.1001257 1.2149141 0.4189359
+#4  5.735231 4.053471  4.355326  0.8193187 0.3449763 0.2587322
+#5  6.756438 6.472951  7.512403  4.3704229 1.1103236 0.5669738
+#6 14.834248 1.061293 18.805151 11.3522538 4.4240401 0.9301216
+#Blym      Tlym      NKT       NEUT       RET
+#1  8.375176 10.062261 2.681261  3.1331593 14.059048
+#2 27.323077 22.615385 5.169231 11.8461539  4.523077
+#3 12.337662 15.982405 3.204860  4.2103058 24.088814
+#4 24.493316 29.969815 4.269082  8.1069426  5.519621
+#5 27.191117 14.339712 4.323175  3.9215686  5.882353
+#6  5.306463  5.688052 3.112330  0.2861913  7.500596
+
+data$TreatmentGenotype <- factor(data$TreatmentGenotype, levels = c('WT_CONTROL', 'WT_COLD', 'WT_CL', "KO_CONTROL", "KO_COLD"))
+data$Library <- factor(data$Library, levels = c("Male_Rep1_CONTROL", "Male_Rep2_CONTROL", "Male_Rep1_COLD", "Male_Rep2_COLD", "Male_Rep1_CL", "Male_Rep2_CL", "Female_WT_CONTROL", "Female_KO_CONTROL", "Female_WT_COLD", "Female_KO_COLD"))
+
+
+
+########MAC1 Cluster
+(cor(data$Linneg_Diff_Total, data$MAC1))^2
+# [1] 0.8718017 pos
+cor.test(data$MAC1, data$Linneg_Diff_Total)
+#Pearson's product-moment correlation
+#
+#data:  data$MAC1 and data$Linneg_Diff_Total
+#t = 7.3759, df = 8, p-value = 7.798e-05
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+# 0.7378432 0.9845363
+#sample estimates:
+#      cor 
+#0.9337032
+
+#width = 1000, height = 550
+#plot with legend
+mycols <- c("#F8766D","#00BFC4", "#ffd500", "#7CAE00", "#C77CFF") 
+ggplot(data, aes(x=MAC1, y=Linneg_Diff_Total)) +
+  geom_point(aes(shape=Library, color=TreatmentGenotype), size=7, stroke = 2) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, color = "grey0") + 
+  scale_shape_manual(values=c(2, 17, 0, 12, 15, 5, 1, 16, 10, 18)) + 
+  labs(x = "Lin+, MAC1 Cluster (%)", y = "Lin-, Prolif/Diff Cluster (%)") + 
+  theme_classic() + 
+  theme(axis.title = element_text(size = 18, face="bold"), title = element_text(size = 20, face="bold"), legend.text = element_text(size = 15, face = "bold"), axis.text.x = element_text(size = 18, face = "bold", margin = margin(t = 0, r = 0, b = 15, l = 0)), axis.text.y = element_text(size = 18, face = "bold", margin = margin(t = 0, r = 0, b = 0, l = 15))) +
+  scale_colour_manual(values=mycols) + theme(plot.margin = margin(20, 30, 20, 20))
+
+#width = 550, height = 550
+ggplot(data, aes(x=MAC1, y=Linneg_Diff_Total)) +
+  geom_point(aes(shape=Library, color=TreatmentGenotype), size=7, stroke = 2, show.legend = FALSE) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, color = "grey0") + 
+  scale_shape_manual(values=c(2, 17, 0, 12, 15, 5, 1, 16, 10, 18)) + 
+  labs(x = "Lin+, MAC1 Cluster (%)", y = "Lin-, Prolif/Diff Cluster (%)") + 
+  theme_classic() + 
+  theme(axis.title = element_text(size = 25, face="bold"), legend.text = element_text(size = 25, face = "bold"), axis.text.x = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 15, l = 0)), axis.text.y = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 0, l = 15))) +
+  theme(plot.margin = margin(20, 30, 20, 20)) +
+  scale_colour_manual(values=mycols)
+
+
+
+########DEND2 Cluster
+(cor(data$Linneg_Diff_Total, data$DEND2))^2
+# [1] 0.9080457 pos
+cor.test(data$DEND2, data$Linneg_Diff_Total)
+#Pearson's product-moment correlation
+#
+#data:  data$DEND2 and data$Linneg_Diff_Total
+#t = 8.8882, df = 8, p-value = 2.031e-05
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+# 0.8081796 0.9891003
+#sample estimates:
+#      cor 
+#0.9529143 
+
+ggplot(data, aes(x=DEND2, y=Linneg_Diff_Total)) +
+  geom_point(aes(shape=Library, color=TreatmentGenotype), size=7, stroke = 2, show.legend = FALSE) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, color = "grey0") + 
+  scale_shape_manual(values=c(2, 17, 0, 12, 15, 5, 1, 16, 10, 18)) + 
+  labs(x = "Lin+, DEND2 Cluster (%)", y = "Lin-, Prolif/Diff Cluster (%)") + 
+  theme_classic() + 
+  theme(axis.title = element_text(size = 25, face="bold"), legend.text = element_text(size = 25, face = "bold"), axis.text.x = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 15, l = 0)), axis.text.y = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 0, l = 15))) +
+  theme(plot.margin = margin(20, 30, 20, 20)) +
+  scale_colour_manual(values=mycols)
+  
+
+########DEND1 Cluster
+(cor(data$Linneg_Diff_Total, data$DEND1))^2
+# [1] 0.7382728 pos
+cor.test(data$DEND1, data$Linneg_Diff_Total)
+#Pearson's product-moment correlation
+#
+#data:  data$DEND1 and data$Linneg_Diff_Total
+#t = 4.7504, df = 8, p-value = 0.001445
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+# 0.5002134 0.9661658
+#sample estimates:
+#     cor 
+#0.859228
+
+ggplot(data, aes(x=DEND1, y=Linneg_Diff_Total)) +
+  geom_point(aes(shape=Library, color=TreatmentGenotype), size=7, stroke = 2, show.legend = FALSE) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, color = "grey0") + 
+  scale_shape_manual(values=c(2, 17, 0, 12, 15, 5, 1, 16, 10, 18)) + 
+  labs(x = "Lin+, DEND1 Cluster (%)", y = "Lin-, Prolif/Diff Cluster (%)") + 
+  theme_classic() + 
+  theme(axis.title = element_text(size = 25, face="bold"), legend.text = element_text(size = 25, face = "bold"), axis.text.x = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 15, l = 0)), axis.text.y = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 0, l = 15))) +
+  theme(plot.margin = margin(20, 30, 20, 20)) +
+  scale_colour_manual(values=mycols)
+
+
+
+########DEND3 Cluster
+(cor(data$Linneg_Diff_Total, data$DEND3))^2
+# [1] 0.7713569 pos
+cor.test(data$DEND3, data$Linneg_Diff_Total)
+#Pearson's product-moment correlation
+#
+#data:  data$DEND3 and data$Linneg_Diff_Total
+#t = 5.1951, df = 8, p-value = 0.0008273
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+# 0.5562251 0.9709682
+#sample estimates:
+#      cor 
+#0.8782693
+
+ggplot(data, aes(x=DEND3, y=Linneg_Diff_Total)) +
+  geom_point(aes(shape=Library, color=TreatmentGenotype), size=7, stroke = 2, show.legend = FALSE) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, color = "grey0") + 
+  scale_shape_manual(values=c(2, 17, 0, 12, 15, 5, 1, 16, 10, 18)) + 
+  labs(x = "Lin+, DEND3 Cluster (%)", y = "Lin-, Prolif/Diff Cluster (%)") + 
+  theme_classic() + 
+  theme(axis.title = element_text(size = 25, face="bold"), legend.text = element_text(size = 25, face = "bold"), axis.text.x = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 15, l = 0)), axis.text.y = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 0, l = 15))) +
+  theme(plot.margin = margin(20, 30, 20, 20)) +
+  scale_colour_manual(values=mycols)
+
+
+
+########DEND4 Cluster
+(cor(data$Linneg_Diff_Total, data$DEND4))^2
+# [1] 0.6417403 pos
+cor.test(data$DEND4, data$Linneg_Diff_Total)
+#Pearson's product-moment correlation
+#
+#data:  data$DEND4 and data$Linneg_Diff_Total
+#t = 3.7855, df = 8, p-value = 0.005346
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+# 0.3459555 0.9510284
+#sample estimates:
+#      cor 
+#0.8010869 
+
+ggplot(data, aes(x=DEND4, y=Linneg_Diff_Total)) +
+  geom_point(aes(shape=Library, color=TreatmentGenotype), size=7, stroke = 2, show.legend = FALSE) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, color = "grey0") + 
+  scale_shape_manual(values=c(2, 17, 0, 12, 15, 5, 1, 16, 10, 18)) + 
+  labs(x = "Lin+, DEND4 Cluster (%)", y = "Lin-, Prolif/Diff Cluster (%)") + 
+  theme_classic() + 
+  theme(axis.title = element_text(size = 25, face="bold"), legend.text = element_text(size = 25, face = "bold"), axis.text.x = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 15, l = 0)), axis.text.y = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 0, l = 15))) +
+  theme(plot.margin = margin(20, 30, 20, 20)) +
+  scale_colour_manual(values=mycols)
+
+
+########MAC2 Cluster
+(cor(data$Linneg_Diff_Total, data$MAC2))^2
+# [1] 0.0163365 pos
+cor.test(data$MAC2, data$Linneg_Diff_Total)
+#Pearson's product-moment correlation
+#
+#data:  data$MAC2 and data$Linneg_Diff_Total
+#t = 0.3645, df = 8, p-value = 0.7249
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+# -0.5457297  0.7010254
+#sample estimates:
+#      cor 
+#0.1278143
+
+ggplot(data, aes(x=MAC2, y=Linneg_Diff_Total)) +
+  geom_point(aes(shape=Library, color=TreatmentGenotype), size=7, stroke = 2, show.legend = FALSE) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, color = "grey0") + 
+  scale_shape_manual(values=c(2, 17, 0, 12, 15, 5, 1, 16, 10, 18)) + 
+  labs(x = "Lin+, MAC2 Cluster (%)", y = "Lin-, Prolif/Diff Cluster (%)") + 
+  theme_classic() + 
+  theme(axis.title = element_text(size = 25, face="bold"), legend.text = element_text(size = 25, face = "bold"), axis.text.x = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 15, l = 0)), axis.text.y = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 0, l = 15))) +
+  theme(plot.margin = margin(20, 30, 20, 20)) +
+  scale_colour_manual(values=mycols)
+
+
+
+########MAC3 Cluster
+(cor(data$Linneg_Diff_Total, data$MAC3))^2
+# [1] 0.4223617 pos
+cor.test(data$MAC3, data$Linneg_Diff_Total)
+#Pearson's product-moment correlation
+#
+#data:  data$MAC3 and data$Linneg_Diff_Total
+#t = 2.4186, df = 8, p-value = 0.04194
+#alternative hypothesis: true correlation is not equal to 0
+#95 percent confidence interval:
+# 0.03430434 0.90798248
+#sample estimates:
+#      cor 
+#0.6498936 
+
+ggplot(data, aes(x=MAC3, y=Linneg_Diff_Total)) +
+  geom_point(aes(shape=Library, color=TreatmentGenotype), size=7, stroke = 2, show.legend = FALSE) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, color = "grey0") + 
+  scale_shape_manual(values=c(2, 17, 0, 12, 15, 5, 1, 16, 10, 18)) + 
+  labs(x = "Lin+, MAC3 Cluster (%)", y = "Lin-, Prolif/Diff Cluster (%)") + 
+  theme_classic() + 
+  theme(axis.title = element_text(size = 25, face="bold"), legend.text = element_text(size = 25, face = "bold"), axis.text.x = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 15, l = 0)), axis.text.y = element_text(size = 25, face = "bold", margin = margin(t = 0, r = 0, b = 0, l = 15))) +
+  theme(plot.margin = margin(20, 30, 20, 20)) +
+  scale_colour_manual(values=mycols)
+
