@@ -1,0 +1,365 @@
+#######################
+#######################Seurat
+#######################
+
+#######r/3.5.1
+#ggplot2_3.3.0   reticulate_1.15 dplyr_0.8.5	Seurat_3.1.5     
+
+
+############Seurat processing of SoupX-adjusted libraries
+############
+O_RT.data <- Read10X(data.dir = "~/SoupX/PATH/C57_RT_Rep1_LN_SoupX")
+O_RT <- CreateSeuratObject(counts = O_RT.data, min.cells=3, project = "C57_RT_Rep1_LN_SoupX")
+O_RT$Replicate <- "Rep1"
+O_RT$Genotype <- "WT"
+O_RT$Treatment <- "CONTROL"
+O_RT$Sex <- "Male"
+str(O_RT) #5886
+############################################################################
+O_6C.data <- Read10X(data.dir = "~/SoupX/PATH/C57_COLD_Rep1_LN_SoupX")
+O_6C <- CreateSeuratObject(counts = O_6C.data, min.cells=3, project = "C57_COLD_Rep1_LN_SoupX")
+O_6C$Replicate <- "Rep1"
+O_6C$Genotype <- "WT"
+O_6C$Treatment <- "COLD"
+O_6C$Sex <- "Male"
+str(O_6C) #10242
+############################################################################
+O_CL.data <- Read10X(data.dir = "~/SoupX/PATH/C57_CL_Rep1_LN_SoupX")
+O_CL <- CreateSeuratObject(counts = O_CL.data, min.cells=3, project = "C57_CL_Rep1_LN_SoupX")
+O_CL$Replicate <- "Rep1"
+O_CL$Genotype <- "WT"
+O_CL$Treatment <- "CL"
+O_CL$Sex <- "Male"
+str(O_CL) #14792
+############################################################################
+R_RT.data <- Read10X(data.dir = "~/SoupX/PATH/C57_RT_Rep2_LN_SoupX")
+R_RT <- CreateSeuratObject(counts = R_RT.data, min.cells=3, project = "C57_RT_Rep2_LN_SoupX")
+R_RT$Replicate <- "Rep2"
+R_RT$Genotype <- "WT"
+R_RT$Treatment <- "CONTROL"
+R_RT$Sex <- "Male"
+str(R_RT) #22072
+############################################################################
+R_6C.data <- Read10X(data.dir = "~/SoupX/PATH/C57_COLD_Rep2_LN_SoupX")
+R_6C <- CreateSeuratObject(counts = R_6C.data, min.cells=3, project = "C57_COLD_Rep2_LN_SoupX")
+R_6C$Replicate <- "Rep2"
+R_6C$Genotype <- "WT"
+R_6C$Treatment <- "COLD"
+R_6C$Sex <- "Male"
+str(R_6C) #7414
+############################################################################
+R_CL.data <- Read10X(data.dir = "~/SoupX/PATH/C57_CL_Rep2_LN_SoupX")
+R_CL <- CreateSeuratObject(counts = R_CL.data, min.cells=3, project = "C57_CL_Rep2_LN_SoupX")
+R_CL$Replicate <- "Rep2"
+R_CL$Genotype <- "WT"
+R_CL$Treatment <- "CL"
+R_CL$Sex <- "Male"
+str(R_CL) #6792
+############################################################################
+WT_RT.data <- Read10X(data.dir = "~/SoupX/PATH/Adrb1KO_WT_RT_LN_SoupX")
+WT_RT <- CreateSeuratObject(counts = WT_RT.data, min.cells=3, project = "Adrb1KO_WT_RT_LN_SoupX")
+WT_RT$Replicate <- "Rep1"
+WT_RT$Genotype <- "WT"
+WT_RT$Treatment <- "CONTROL"
+WT_RT$Sex <- "Female"
+str(WT_RT) #6082
+############################################################################
+KO_RT.data <- Read10X(data.dir = "~/SoupX/PATH/Adrb1KO_KO_RT_LN_SoupX")
+KO_RT <- CreateSeuratObject(counts = KO_RT.data, min.cells=3, project = "Adrb1KO_KO_RT_LN_SoupX")
+KO_RT$Replicate <- "Rep1"
+KO_RT$Genotype <- "KO"
+KO_RT$Treatment <- "CONTROL"
+KO_RT$Sex <- "Female"
+str(KO_RT) #4204
+############################################################################
+WT_COLD.data <- Read10X(data.dir = "~/SoupX/PATH/Adrb1KO_WT_COLD_LN_SoupX")
+WT_COLD <- CreateSeuratObject(counts = WT_COLD.data, min.cells=3, project = "Adrb1KO_WT_COLD_LN_SoupX")
+WT_COLD$Replicate <- "Rep1"
+WT_COLD$Genotype <- "WT"
+WT_COLD$Treatment <- "COLD"
+WT_COLD$Sex <- "Female"
+str(WT_COLD) #7472
+############################################################################
+KO_COLD.data <- Read10X(data.dir = "~/SoupX/PATH/Adrb1KO_KO_COLD_LN_SoupX")
+KO_COLD <- CreateSeuratObject(counts = KO_COLD.data, min.cells=3, project = "Adrb1KO_KO_COLD_LN_SoupX")
+KO_COLD$Replicate <- "Rep1"
+KO_COLD$Genotype <- "KO"
+KO_COLD$Treatment <- "COLD"
+KO_COLD$Sex <- "Female"
+str(KO_COLD) #4681
+
+
+###################
+#Quality filter
+###################
+O_RT[["percent.mt"]] <- PercentageFeatureSet(O_RT, pattern = "^mt-")
+O_6C[["percent.mt"]] <- PercentageFeatureSet(O_6C, pattern = "^mt-")
+O_CL[["percent.mt"]] <- PercentageFeatureSet(O_CL, pattern = "^mt-")
+R_RT[["percent.mt"]] <- PercentageFeatureSet(R_RT, pattern = "^mt-")
+R_6C[["percent.mt"]] <- PercentageFeatureSet(R_6C, pattern = "^mt-")
+R_CL[["percent.mt"]] <- PercentageFeatureSet(R_CL, pattern = "^mt-")
+WT_RT[["percent.mt"]] <- PercentageFeatureSet(WT_RT, pattern = "^mt-")
+KO_RT[["percent.mt"]] <- PercentageFeatureSet(KO_RT, pattern = "^mt-")
+WT_COLD[["percent.mt"]] <- PercentageFeatureSet(WT_COLD, pattern = "^mt-")
+KO_COLD[["percent.mt"]] <- PercentageFeatureSet(KO_COLD, pattern = "^mt-")
+O_RT <- subset(O_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+O_6C <- subset(O_6C, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+O_CL <- subset(O_CL, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+R_RT <- subset(R_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+R_6C <- subset(R_6C, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+R_CL <- subset(R_CL, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+WT_RT <- subset(WT_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+KO_RT <- subset(KO_RT, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+WT_COLD <- subset(WT_COLD, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+KO_COLD <- subset(KO_COLD, subset = percent.mt < 10 & nCount_RNA < 15000 & nFeature_RNA > 100)
+str(O_RT) #5603
+str(O_6C) #9855
+str(O_CL) #12894
+str(R_RT) #6171
+str(R_6C) #7062
+str(R_CL) #6422
+str(WT_RT) #4818
+str(KO_RT) #2427
+str(WT_COLD) #6885
+str(KO_COLD) #4202
+
+
+
+###################
+#Normalize
+###################
+O_RT <- NormalizeData(O_RT)
+O_6C <- NormalizeData(O_6C)
+O_CL <- NormalizeData(O_CL)
+R_RT <- NormalizeData(R_RT)
+R_6C <- NormalizeData(R_6C)
+R_CL <- NormalizeData(R_CL)
+WT_RT <- NormalizeData(WT_RT)
+KO_RT <- NormalizeData(KO_RT)
+WT_COLD <- NormalizeData(WT_COLD)
+KO_COLD <- NormalizeData(KO_COLD)
+
+
+
+###################
+#Merge
+###################
+OGnorm <- merge(O_RT, y = c(O_6C, O_CL), project = "OG_Linneg", merge.data = TRUE)
+RTnorm <- merge(R_RT, y = c(R_6C, R_CL), project = "RE_Linneg", merge.data = TRUE)
+
+
+###################
+#Merge
+###################
+OGnorm <- FindVariableFeatures(OGnorm, selection.method = "vst", nfeatures = 2000)
+RTnorm <- FindVariableFeatures(RTnorm, selection.method = "vst", nfeatures = 2000)
+
+WT_RTvf <- FindVariableFeatures(WT_RT, selection.method = "vst", nfeatures = 2000)
+KO_RTvf <- FindVariableFeatures(KO_RT, selection.method = "vst", nfeatures = 2000)
+WT_COLDvf <- FindVariableFeatures(WT_COLD, selection.method = "vst", nfeatures = 2000)
+KO_COLDvf <- FindVariableFeatures(KO_COLD, selection.method = "vst", nfeatures = 2000)
+
+
+
+
+###################
+###################
+#Integrate
+#######################dim =14
+LNanchors14 <- FindIntegrationAnchors(object.list = list(OGnorm, RTnorm, WT_RTvf, KO_RTvf, WT_COLDvf, KO_COLDvf), dims = 1:14) 
+Linneg_mi_d14 <- IntegrateData(anchorset = LNanchors14, dims = 1:14)
+###################
+#Scale
+###################
+allgenesmi14 <- rownames(Linneg_mi_d14)
+Linneg_mi_d14 <- ScaleData(Linneg_mi_d14, features = allgenesmi14)
+###################
+#PCs
+###################
+Linneg_mi_d14 <- RunPCA(Linneg_mi_d14, features = VariableFeatures(object = Linneg_mi_d14))
+Linneg_mi_d14 <- FindNeighbors(Linneg_mi_d14, dims = 1:14)
+###################
+#Visualize Data
+###################resolution = 0.1
+Linneg_mi_d14_r1 <- FindClusters(Linneg_mi_d14, resolution = 0.1)
+#TSNE
+Linneg_mi_d14_r1_t <- RunTSNE(Linneg_mi_d14_r1, dims = 1:14)
+png("Linneg_mi_d14_r1_tsne_1.png")
+DimPlot(Linneg_mi_d14_r1_t, reduction = "tsne", label = TRUE)
+dev.off()
+png("Linneg_mi_d14_r1_tsne_2.png", height = 450, width = 900, units = "px")
+DimPlot(Linneg_mi_d14_r1_t, reduction = "tsne", split.by = "Treatment")
+dev.off()
+
+
+
+DefaultAssay(Linneg_mi_d14_r1_t) <- "RNA"
+Linneg_mi_d14_r1_t <- ScaleData(Linneg_mi_d14_r1_t, verbose = FALSE)
+LinnegM_mi_d14_r1_t_cluster0markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 0, min.pct = 0.25)
+LinnegM_mi_d14_r1_t_cluster1markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 1, min.pct = 0.25)
+LinnegM_mi_d14_r1_t_cluster2markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 2, min.pct = 0.25)
+LinnegM_mi_d14_r1_t_cluster3markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 3, min.pct = 0.25)
+LinnegM_mi_d14_r1_t_cluster4markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 4, min.pct = 0.25)
+LinnegM_mi_d14_r1_t_cluster5markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 5, min.pct = 0.25)
+LinnegM_mi_d14_r1_t_cluster6markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 6, min.pct = 0.25)
+LinnegM_mi_d14_r1_t_cluster7markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 7, min.pct = 0.25)
+LinnegM_mi_d14_r1_t_cluster8markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 8, min.pct = 0.25)
+LinnegM_mi_d14_r1_t_cluster9markers <- FindMarkers(Linneg_mi_d14_r1_t, ident.1 = 9, min.pct = 0.25)
+write.csv(LinnegM_mi_d14_r1_t_cluster0markers, "LinnegM_mi_d14_r1_t_cluster0markers.csv")
+write.csv(LinnegM_mi_d14_r1_t_cluster1markers, "LinnegM_mi_d14_r1_t_cluster1markers.csv")
+write.csv(LinnegM_mi_d14_r1_t_cluster2markers, "LinnegM_mi_d14_r1_t_cluster2markers.csv")
+write.csv(LinnegM_mi_d14_r1_t_cluster3markers, "LinnegM_mi_d14_r1_t_cluster3markers.csv")
+write.csv(LinnegM_mi_d14_r1_t_cluster4markers, "LinnegM_mi_d14_r1_t_cluster4markers.csv")
+write.csv(LinnegM_mi_d14_r1_t_cluster5markers, "LinnegM_mi_d14_r1_t_cluster5markers.csv")
+write.csv(LinnegM_mi_d14_r1_t_cluster6markers, "LinnegM_mi_d14_r1_t_cluster6markers.csv")
+write.csv(LinnegM_mi_d14_r1_t_cluster7markers, "LinnegM_mi_d14_r1_t_cluster7markers.csv")
+write.csv(LinnegM_mi_d14_r1_t_cluster8markers, "LinnegM_mi_d14_r1_t_cluster8markers.csv")
+write.csv(LinnegM_mi_d14_r1_t_cluster9markers, "LinnegM_mi_d14_r1_t_cluster9markers.csv")
+
+
+
+
+###################
+#Set new cluster ids
+###################
+new.cluster.ids <- c("ASC1", "ASC2", "VEC", "ASC3", "Prolif/Diff", "VSMC", "Immune", "Schwann", "Junk1", "Junk2")
+names(new.cluster.ids) <- levels(Linneg_mi_d14_r1_t)
+Linneg_mi_d14_r1_t <- RenameIdents(Linneg_mi_d14_r1_t, new.cluster.ids)
+levels(Linneg_mi_d14_r1_t)
+# [1] "ASC1"        "ASC2"        "VEC"         "ASC3"        "Prolif/Diff"
+# [6] "VSMC"        "Immune"      "Schwann"     "Junk1"       "Junk2" 
+levels(x = Linneg_mi_d14_r1_t) <- c("ASC1", "ASC2", "ASC3", "Prolif/Diff", "VEC", "VSMC", "Immune", "Schwann", "Junk1", "Junk2")
+levels(Linneg_mi_d14_r1_t)
+# [1] "ASC1"        "ASC2"        "ASC3"        "Prolif/Diff" "VEC"        
+# [6] "VSMC"        "Immune"      "Schwann"     "Junk1"       "Junk2" 
+
+
+
+
+Linneg_mi_d14_r1_t$cluster.orig <- paste(Idents(Linneg_mi_d14_r1_t), Linneg_mi_d14_r1_t$orig.ident, sep = "_")
+Linneg_mi_d14_r1_t@meta.data$cluster.orig %>% table()
+#       ASC1_Adrb1KO_KO_COLD_LN_SoupX          ASC1_Adrb1KO_KO_RT_LN_SoupX 
+#                                1156                                  483 
+#       ASC1_Adrb1KO_WT_COLD_LN_SoupX          ASC1_Adrb1KO_WT_RT_LN_SoupX 
+#                                1996                                  836 
+#           ASC1_C57_CL_Rep1_LN_SoupX            ASC1_C57_CL_Rep2_LN_SoupX 
+#                                2064                                 1876 
+#         ASC1_C57_COLD_Rep1_LN_SoupX          ASC1_C57_COLD_Rep2_LN_SoupX 
+#                                3277                                 2628 
+#           ASC1_C57_RT_Rep1_LN_SoupX            ASC1_C57_RT_Rep2_LN_SoupX 
+#                                1651                                 1641
+#
+#       ASC2_Adrb1KO_KO_COLD_LN_SoupX          ASC2_Adrb1KO_KO_RT_LN_SoupX 
+#                                1022                                  593 
+#       ASC2_Adrb1KO_WT_COLD_LN_SoupX          ASC2_Adrb1KO_WT_RT_LN_SoupX 
+#                                1382                                 1891 
+#           ASC2_C57_CL_Rep1_LN_SoupX            ASC2_C57_CL_Rep2_LN_SoupX 
+#                                2270                                 2242 
+#         ASC2_C57_COLD_Rep1_LN_SoupX          ASC2_C57_COLD_Rep2_LN_SoupX 
+#                                1272                                  939 
+#           ASC2_C57_RT_Rep1_LN_SoupX            ASC2_C57_RT_Rep2_LN_SoupX 
+#                                1302                                 1360 
+#
+#       ASC3_Adrb1KO_KO_COLD_LN_SoupX          ASC3_Adrb1KO_KO_RT_LN_SoupX 
+#                                 597                                  445 
+#       ASC3_Adrb1KO_WT_COLD_LN_SoupX          ASC3_Adrb1KO_WT_RT_LN_SoupX 
+#                                 990                                  918 
+#           ASC3_C57_CL_Rep1_LN_SoupX            ASC3_C57_CL_Rep2_LN_SoupX 
+#                                 362                                 1065 
+#         ASC3_C57_COLD_Rep1_LN_SoupX          ASC3_C57_COLD_Rep2_LN_SoupX 
+#                                 483                                  555 
+#           ASC3_C57_RT_Rep1_LN_SoupX            ASC3_C57_RT_Rep2_LN_SoupX 
+#                                 572                                  669 
+#
+#     Immune_Adrb1KO_KO_COLD_LN_SoupX        Immune_Adrb1KO_KO_RT_LN_SoupX 
+#                                 311                                  102 
+#     Immune_Adrb1KO_WT_COLD_LN_SoupX        Immune_Adrb1KO_WT_RT_LN_SoupX 
+#                                 359                                  261 
+#         Immune_C57_CL_Rep1_LN_SoupX          Immune_C57_CL_Rep2_LN_SoupX 
+#                                 347                                  164 
+#       Immune_C57_COLD_Rep1_LN_SoupX        Immune_C57_COLD_Rep2_LN_SoupX 
+#                                 546                                  506 
+#         Immune_C57_RT_Rep1_LN_SoupX          Immune_C57_RT_Rep2_LN_SoupX 
+#                                 182                                  290 
+#
+#      Junk1_Adrb1KO_KO_COLD_LN_SoupX         Junk1_Adrb1KO_KO_RT_LN_SoupX 
+#                                 130                                   70 
+#      Junk1_Adrb1KO_WT_COLD_LN_SoupX         Junk1_Adrb1KO_WT_RT_LN_SoupX 
+#                                 257                                   21 
+#        Junk1_C57_COLD_Rep2_LN_SoupX        
+#                                   1                                    
+#
+#        Junk2_Adrb1KO_KO_COLD_LN_SoupX 
+#        						  51                       
+#        Junk2_Adrb1KO_KO_RT_LN_SoupX       Junk2_Adrb1KO_WT_COLD_LN_SoupX 
+#                                  28                                  115 
+#        Junk2_Adrb1KO_WT_RT_LN_SoupX           Junk2_C57_CL_Rep1_LN_SoupX 
+#                                  35                                   12 
+#          Junk2_C57_CL_Rep2_LN_SoupX         Junk2_C57_COLD_Rep1_LN_SoupX 
+#                                  28                                    9 
+#        Junk2_C57_COLD_Rep2_LN_SoupX           Junk2_C57_RT_Rep1_LN_SoupX 
+#                                  24                                   21 
+#          Junk2_C57_RT_Rep2_LN_SoupX 
+#                                  27  
+#
+#Prolif/Diff_Adrb1KO_KO_COLD_LN_SoupX 
+#           					     273                     
+#  Prolif/Diff_Adrb1KO_KO_RT_LN_SoupX Prolif/Diff_Adrb1KO_WT_COLD_LN_SoupX 
+#                                  18                                  722 
+#  Prolif/Diff_Adrb1KO_WT_RT_LN_SoupX     Prolif/Diff_C57_CL_Rep1_LN_SoupX 
+#                                  37                                 1417 
+#    Prolif/Diff_C57_CL_Rep2_LN_SoupX   Prolif/Diff_C57_COLD_Rep1_LN_SoupX 
+#                                 191                                 2111 
+#  Prolif/Diff_C57_COLD_Rep2_LN_SoupX     Prolif/Diff_C57_RT_Rep1_LN_SoupX 
+#                                 983                                   14 
+#    Prolif/Diff_C57_RT_Rep2_LN_SoupX      
+#                                  19                                 
+#
+#	Schwann_Adrb1KO_KO_COLD_LN_SoupX
+#								 126 
+#      Schwann_Adrb1KO_KO_RT_LN_SoupX     Schwann_Adrb1KO_WT_COLD_LN_SoupX 
+#                                  69                                  179 
+#      Schwann_Adrb1KO_WT_RT_LN_SoupX         Schwann_C57_CL_Rep1_LN_SoupX 
+#                                 102                                   62 
+#        Schwann_C57_CL_Rep2_LN_SoupX       Schwann_C57_COLD_Rep1_LN_SoupX 
+#                                 151                                  152 
+#      Schwann_C57_COLD_Rep2_LN_SoupX         Schwann_C57_RT_Rep1_LN_SoupX 
+#                                 140                                  104 
+#        Schwann_C57_RT_Rep2_LN_SoupX          
+#                                 148                                   
+#
+#		VEC_Adrb1KO_KO_COLD_LN_SoupX
+#                     			 331            
+#          VEC_Adrb1KO_KO_RT_LN_SoupX         VEC_Adrb1KO_WT_COLD_LN_SoupX 
+#                                 408                                  495 
+#          VEC_Adrb1KO_WT_RT_LN_SoupX             VEC_C57_CL_Rep1_LN_SoupX 
+#                                 406                                 5849 
+#            VEC_C57_CL_Rep2_LN_SoupX           VEC_C57_COLD_Rep1_LN_SoupX 
+#                                 301                                 1334 
+#          VEC_C57_COLD_Rep2_LN_SoupX             VEC_C57_RT_Rep1_LN_SoupX 
+#                                 723                                 1189 
+#            VEC_C57_RT_Rep2_LN_SoupX         
+#                                1240 
+#                                                                  
+#	    VSMC_Adrb1KO_KO_COLD_LN_SoupX
+#                          		  205      
+#         VSMC_Adrb1KO_KO_RT_LN_SoupX        VSMC_Adrb1KO_WT_COLD_LN_SoupX 
+#                                 211                                  390 
+#         VSMC_Adrb1KO_WT_RT_LN_SoupX            VSMC_C57_CL_Rep1_LN_SoupX 
+#                                 311                                  511 
+#           VSMC_C57_CL_Rep2_LN_SoupX          VSMC_C57_COLD_Rep1_LN_SoupX 
+#                                 404                                  671 
+#         VSMC_C57_COLD_Rep2_LN_SoupX            VSMC_C57_RT_Rep1_LN_SoupX 
+#                                 563                                  568 
+#           VSMC_C57_RT_Rep2_LN_SoupX 
+#                                 777 
+
+
+####################################################################
+####################################################################
+##############Do not include cells from Junk1 and Junk2 cells in calculation.
+##############Calucate percentages for each the Prolif/Diff cluster in each library. Add to a .csv file with meta data and Lin+ analysis.
+####################################################################
+####################################################################
+
+
